@@ -151,7 +151,7 @@ clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 #     t = Libc.time() - t0
 #     println("t: $(Int(round(t)))s t_left?: $(round(t * (length(possible_a0s) - i) / i / 60; digits=1)) mins")
 # end
-
+#
 # best_fits = sortperm(nℓs)
 #
 # plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))

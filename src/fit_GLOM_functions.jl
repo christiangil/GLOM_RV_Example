@@ -122,7 +122,8 @@ end
 
 function fit_GLOM!(problem_definition::GLOM.GLO, initial_total_hyperparameters::Vector{<:Real}, kernel_hyper_priors::Function, add_kick!::Function; g_tol=1e-6, iterations=200, print_stuff::Bool=true)
 
-    print_stuff ? optim_cb_local(x::OptimizationState) = optim_cb(x) : optim_cb_local(x::OptimizationState) = false
+    optim_cb_local(x::OptimizationState) = false
+    if print_stuff; optim_cb_local(x::OptimizationState) = optim_cb(x) end
 
     workspace = GLOM.nlogL_matrix_workspace(problem_definition, initial_total_hyperparameters)
 
