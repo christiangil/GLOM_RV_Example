@@ -83,14 +83,16 @@ end
 
 
 # ends optimization if true
-function optim_cb(x::OptimizationState)
-    println()
-    if x.iteration > 0
-        println("Iteration:              ", x.iteration)
-        println("Time so far:            ", x.metadata["time"], " s")
-        println("Unnormalized posterior: ", x.value)
-        println("Gradient norm:          ", x.g_norm)
+function optim_cb(x::OptimizationState; print_stuff::Bool=true)
+    if print_stuff
         println()
+        if x.iteration > 0
+            println("Iteration:              ", x.iteration)
+            println("Time so far:            ", x.metadata["time"], " s")
+            println("Unnormalized posterior: ", x.value)
+            println("Gradient norm:          ", x.g_norm)
+            println()
+        end
     end
     return false
 end
@@ -122,8 +124,7 @@ end
 
 function fit_GLOM!(problem_definition::GLOM.GLO, initial_total_hyperparameters::Vector{<:Real}, kernel_hyper_priors::Function, add_kick!::Function; g_tol=1e-6, iterations=200, print_stuff::Bool=true)
 
-    optim_cb_local(x::OptimizationState) = false
-    if print_stuff; optim_cb_local(x::OptimizationState) = optim_cb(x) end
+    optim_cb_local(x::OptimizationState) = optim_cb(x; print_stuff=print_stuff)
 
     workspace = GLOM.nlogL_matrix_workspace(problem_definition, initial_total_hyperparameters)
 

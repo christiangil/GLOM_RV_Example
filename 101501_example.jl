@@ -132,6 +132,7 @@ clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 # # coefficients
 # possible_a0s = Matrix[]
 # GLOM_RV.valid_a0s!(possible_a0s, zeros(n_out, n_dif))
+# append!(possible_a0s, [ones(n_out, n_dif)])
 # reverse!(possible_a0s)  # the expensive, filled out possibilities go first
 # nℓs = Float64[]
 # all_fit_total_hyperparameters = Vector[]
