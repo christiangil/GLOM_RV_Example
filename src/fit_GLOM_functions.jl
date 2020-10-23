@@ -239,9 +239,9 @@ function valid_a0s!(possible_a0s::Vector, a0::Matrix; i::Int=1)
     n_out = size(a0, 1)
     if i == 10 &&
         # any rows are all 0s
-        !any([all(a0[j,:] .== 0) for j in 1:n_out]) &&
-        # all rows are the same
-        !all([a0[j,:] == a0[j+1,:] for j in 1:n_out-1])
+        !any([all(a0[j,:] .== 0) for j in 1:n_out]) # &&
+        # # all rows are the same
+        # !all([a0[j,:] == a0[j+1,:] for j in 1:n_out-1])
         append!(possible_a0s, [copy(a0)])
     end
     if i < 10
