@@ -26,7 +26,7 @@ GLOM_RV = Main.GLOM_RV_Example
 kernel_choice = 3
 kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
 kernel_name = kernel_names[kernel_choice]
-kernel_function, num_kernel_hyperparameters = include(pathof(GLOM) * "/../kernels/$(kernel_name)_kernel.jl")
+kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
