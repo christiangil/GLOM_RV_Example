@@ -1,3 +1,6 @@
+using UnitfulAstro
+using Unitful
+
 """
 Derivative of transformed Keplerian parameters defined in Pal 2019
 "An analytical solution for Kepler's problem"
@@ -35,7 +38,7 @@ function kep_deriv(
 	q = e * cos(EA)
 	p = e * sin(EA)
 	ω = atan(h, k)
-	# λ = mean_anomaly(t, P, M0) + atan(h, k)
+	# λ = mean_anomaly(t, P, M0) + ω
 	# c = cos(λ + p)
 	# s = sin(λ + p)
 	c = cos(EA + ω)
@@ -291,34 +294,3 @@ function kep_deriv(
 end
 kep_deriv(ks::kep_signal, t::Unitful.Time, dorder::Vector{<:Integer}) =
 	kep_deriv(ks.K, ks.P, ks.M0, ks.h, ks.k, ks.γ, t, dorder)
-
-
-# function kep_grad(K1::T, P1::T, M01::T, h1::T, k1::T, γ1::T, t1::T) where {T<:Real}
-#
-#     grad = zeros(n_kep_parms)
-#     for i in 1:nparms
-#         dorder = zeros(Int64, n_kep_parms)
-#         dorder[i) = 1
-#         grad[i) = kep_deriv(K1, h1, k1, M01, γ1, P1, t1, dorder)
-#     end
-#
-#     return grad
-#
-# end
-#
-#
-# function kep_hess(K1::T, h1::T, k1::T, M01::T, γ1::T, P1::T, t1::T) where {T<:Real}
-#
-#     hess = zeros(n_kep_parms, n_kep_parms)
-#     for i in 1:n_kep_parms
-#         for j in 1:n_kep_parms
-#             dorder = zeros(Int64, n_kep_parms)
-#             dorder[i) += 1
-#             dorder[j) += 1
-#             hess[i,j) = kep_deriv(K1, h1, k1, M01, γ1, P1, t1, dorder)
-#         end
-#     end
-#
-#     return hess
-#
-# end

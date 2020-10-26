@@ -1,13 +1,13 @@
 # these functions are related to calculating RV quantities
 using UnitfulAstro
 using Unitful
-# using UnitfulAngles
 using LinearAlgebra
-using PyPlot
 using LineSearches
 using Optim
 import GPLinearODEMaker
 GLOM = GPLinearODEMaker
+
+const n_kep_parms = 6
 
 "Convert Unitful units from one to another and strip the final units"
 convert_and_strip_units(new_unit::Unitful.FreeUnits, quant::Quantity) = ustrip(uconvert(new_unit, quant))
@@ -1006,9 +1006,9 @@ fit_kepler(
 # add linear parts to GP fitting epicyclic and full kepler fitting
 
 kep_parms_str(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}) =
-    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * L"^m/_s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * L"d" * "  M0: $(round(ks.M0,digits=2))  e: $(round(ks.e,digits=2))  ω: $(round(ks.ω,digits=2)) γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=2))" * L"^m/_s"
+    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "^m/_s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  M0: $(round(ks.M0,digits=2))  e: $(round(ks.e,digits=2))  ω: $(round(ks.ω,digits=2)) γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=2))" * "^m/_s"
 kep_parms_str_short(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}) =
-    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * L"^m/_s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * L"d" * "  e: $(round(ks.e,digits=2))"
+    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "^m/_s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  e: $(round(ks.e,digits=2))"
 
 
 using DataFrames, CSV
@@ -1023,7 +1023,7 @@ function save_nlogLs(
     ) where {T<:Real}
 
 
-    likelihood_strs = ["L", "uE", "E"]
+    likelihood_strs = ["", "uE", "E"]
     num_likelihoods= length(likelihood_strs)
     # @assert num_likelihoods == length(times)
     @assert length(likelihoods) == 2 * num_likelihoods
