@@ -51,6 +51,11 @@ git-tree-sha1 = "8e695f735fca77e9708e795eda62afdb869cbb70"
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "0.3.4+0"
 
+[[ConstructionBase]]
+git-tree-sha1 = "a2a6a5fea4d6f730ec4c18a76d27ec10e8ec1c50"
+uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+version = "1.0.0"
+
 [[DataAPI]]
 git-tree-sha1 = "176e23402d80e7743fc26c19c681bfb11246af32"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
@@ -371,3 +376,21 @@ version = "1.0.2"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+
+[[Unitful]]
+deps = ["ConstructionBase", "LinearAlgebra", "Random"]
+git-tree-sha1 = "2b643523d52fc9fb4fe0729e6561d066055d58d8"
+uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
+version = "1.5.0"
+
+[[UnitfulAngles]]
+deps = ["Dates", "Unitful"]
+git-tree-sha1 = "dd21b5420bf6e9b76a8c6e56fb575319e7b1f895"
+uuid = "6fb2a4bd-7999-5318-a3b2-8ad61056cd98"
+version = "0.6.1"
+
+[[UnitfulAstro]]
+deps = ["Unitful", "UnitfulAngles"]
+git-tree-sha1 = "b154be4ca9610e9c9dbb9dba98b2bd750539630b"
+uuid = "6112ee07-acf9-5e0f-b108-d242c714bf9f"
+version = "1.0.1"

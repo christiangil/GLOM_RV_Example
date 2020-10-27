@@ -21,6 +21,8 @@ GLOM_RV = Main.GLOM_RV_Example
 # CTRL+F "CHANGE"TO FIND PLACES WHERE YOU SHOULD MAKE MODIFICATIONS #
 #####################################################################
 
+## Problem setup
+
 # CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
 # kernel
 kernel_choice = 3
@@ -83,6 +85,9 @@ initial_total_hyperparameters = collect(Iterators.flatten(problem_definition.a0)
 initial_hypers = [[star_rot_rate], [star_rot_rate], [star_rot_rate], [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate, 2 * star_rot_rate, 1]]
 append!(initial_total_hyperparameters, initial_hypers[kernel_choice])
 
+
+## Fitting GLOM Model
+
 # CHANGE: Setting kernel hyperparameter priors and kick function
 # kick functions help avoid saddle points
 tighten_lengthscale_priors = 3
@@ -103,12 +108,12 @@ else
 end
 
 
-fit_total_hyperparameters, result = GLOM_RV.fit_GLOM!(problem_definition, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
+fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM!(problem_definition, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
 # fit_GLOM returns a vector of num_kernel_hyperparameters gp hyperparameters
 # followed by the GLOM coefficients and the Optim result object
 
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
-post, post_err, post_obs, post_obs_err = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit_total_hyperparameters)
+post, post_err, post_obs, post_obs_err = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
 GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
 GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
@@ -127,6 +132,7 @@ clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 # plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
 # plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
 
+## Coefficient exploration
 
 # # Could use this to iterate through all of the possible combinations of GLOM
 # # coefficients
@@ -171,3 +177,85 @@ clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 #
 # plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
 # plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
+
+## Finding a planet?
+
+nlogprior_hyperparameters(total_hyper::Vector, d::Int) = GLOM_RV.nlogprior_hyperparameters(kernel_hyper_priors, problem_definition.n_kern_hyper, total_hyper, d)
+problem_definition_rv = GLOM_RV.GLO_RV(problem_definition)
+
+############
+# Post fit #
+############
+
+println("starting hyperparameters")
+println(initial_total_hyperparameters)
+initial_nlogL = GLOM.nlogL_GLOM(problem_definition, initial_total_hyperparameters)
+initial_uE = -initial_nlogL - nlogprior_hyperparameters(initial_total_hyperparameters, 0)
+println(initial_uE, "\n")
+
+println("ending hyperparameters")
+println(fit1_total_hyperparameters)
+fit_nlogL1 = GLOM.nlogL_GLOM(problem_definition, fit1_total_hyperparameters)
+uE1 = -fit_nlogL1 - nlogprior_hyperparameters(fit1_total_hyperparameters, 0)
+println(uE1, "\n")
+
+#########################
+# Keplerian periodogram #
+#########################
+
+# sample linearly in frequency space so that we get periods from the 1 / uneven Nyquist
+freq_grid = GLOM_RV.autofrequency(problem_definition_rv.time; samples_per_peak=11)
+period_grid = 1 ./ reverse(freq_grid)
+amount_of_periods = length(period_grid)
+
+Σ_obs = GLOM.Σ_observations(problem_definition, fit1_total_hyperparameters)
+
+# making necessary variables local to all workers
+fit1_total_hyperparameters_nz = GLOM.remove_zeros(fit1_total_hyperparameters)
+nlogprior_kernel = nlogprior_hyperparameters(fit1_total_hyperparameters_nz, 0)
+
+GLOM.auto_addprocs()
+using Distributed
+@everywhere import Pkg
+@everywhere Pkg.activate(".")
+@everywhere include("src/GLOM_RV_Example.jl")
+@everywhere GLOM_RV = Main.GLOM_RV_Example
+@everywhere import GPLinearODEMaker
+@everywhere GLOM = GPLinearODEMaker
+@everywhere using UnitfulAstro, Unitful
+
+GLOM.sendto(workers(), kernel_name=kernel_name)
+@everywhere GLOM.include_kernel(kernel_name)
+
+GLOM.sendto(workers(), problem_definition_rv=problem_definition_rv, fit1_total_hyperparameters=fit1_total_hyperparameters, Σ_obs=Σ_obs, nlogprior_kernel=nlogprior_kernel)
+@everywhere function fit_kep_hold_P(P::Unitful.Time)  # 40x slower than just epicyclic fit
+    ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_epicyclic(P=P))
+    return GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(maximum([0.1u"m/s", ks.K]), ks.P, ks.M0, minimum([ks.e, 0.3]), ks.ω, ks.γ); print_stuff=false, hold_P=true, avoid_saddle=false)
+end
+@everywhere function kep_unnormalized_evidence_distributed(P::Unitful.Time)  # 40x slower than just epicyclic fit
+    ks = fit_kep_hold_P(P)
+    if ks==nothing
+        return [-Inf, -Inf]
+    else
+        val = GLOM.nlogL_GLOM(
+            problem_definition_rv.GLO,
+            fit1_total_hyperparameters;
+            Σ_obs=Σ_obs,
+            y_obs=GLOM_RV.remove_kepler(problem_definition_rv, ks))
+        return [-val, GLOM_RV.logprior_kepler(ks; use_hk=true) - nlogprior_kernel - val]
+    end
+end
+
+# parallelize with DistributedArrays
+pmap(x->kep_unnormalized_evidence_distributed(x), collect(1.:nworkers()) * u"d", batch_size=1)
+@elapsed holder = pmap(x->kep_unnormalized_evidence_distributed(x), period_grid, batch_size=Int(floor(amount_of_periods / nworkers()) + 1))
+likelihoods = [holder[i][1] for i in 1:length(holder)]
+unnorm_evidences = [holder[i][2] for i in 1:length(holder)]
+
+# @time holder_lin = collect(map(kep_unnormalized_evidence_lin_distributed, period_grid_dist))
+# likelihoods_lin = [holder_lin[i][1] for i in 1:length(holder_lin)]
+# unnorm_evidences_lin = [holder_lin[i][2] for i in 1:length(holder_lin)]
+best_periods = period_grid[find_modes(unnorm_evidences; amount=10)]
+best_period = best_periods[1]
+
+println("found period:    $(ustrip(best_period)) days")
