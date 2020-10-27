@@ -3,6 +3,8 @@
 
 const d_err_msg = "d needs to be 0 <= d <= 2"
 using Optim
+import GPLinearODEMaker
+GLOM = GPLinearODEMaker
 
 # hyperparameter priors for kernels with one lenghtscale i.e. pp, se, m52
 function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Real, σ::Real)
