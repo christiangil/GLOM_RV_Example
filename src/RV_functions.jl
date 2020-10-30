@@ -278,7 +278,7 @@ function ∇nlogL_kep(
     G = zeros(n_kep_parms)
     d = zeros(Int64, n_kep_parms)
     for i in 1:length(G)
-        d[:] = zeros(Int64, n_kep_parms)
+        d[:] .= 0
         d[i] = 1
         G[i] = GLOM.dnlogLdθ(remove_kepler(data, times, ks; data_unit=data_unit, d=d), α)
     end
@@ -855,16 +855,16 @@ function fit_kepler_wright(
             end
 
             β = buffer.ks.coefficients
-            function dPdx(dβdx::Vector{T}, δPδx::T) where T<:Real
+            function dPriordx(dβdx::Vector{T}, δPriorδx::T) where T<:Real
                 dKdx = (β[1] * dβdx[1] + β[2] * dβdx[2]) / buffer.ks.K
                 dωdx = ustrip.((β[2] * dβdx[1] - β[1] * dβdx[2]) / buffer.ks.K^2)
                 dγdx = dβdx[3] - buffer.ks.e * dβdx[1]
-                return kep_prior_G[1] * dKdx + kep_prior_G[5] * dωdx + kep_prior_G[6] * dγdx + δPδx
+                return kep_prior_G[1] * dKdx + kep_prior_G[5] * dωdx + kep_prior_G[6] * dγdx + δPriorδx
             end
 
-            if !hold_P; G[1] += dPdx(dβdP, kep_prior_G[2]) end
-            G[end-1] += dPdx(dβdM0, kep_prior_G[3])
-            G[end] += dPdx(dβde, kep_prior_G[4])
+            if !hold_P; G[1] += dPriordx(dβdP, kep_prior_G[2]) end
+            G[end-1] += dPriordx(dβdM0, kep_prior_G[3])
+            G[end] += dPriordx(dβde, kep_prior_G[4])
 
         end
     end
@@ -1006,9 +1006,9 @@ fit_kepler(
 # add linear parts to GP fitting epicyclic and full kepler fitting
 
 kep_parms_str(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}) =
-    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "^m/_s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  M0: $(round(ks.M0,digits=2))  e: $(round(ks.e,digits=2))  ω: $(round(ks.ω,digits=2)) γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=2))" * "^m/_s"
+    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "m/s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  M0: $(round(ks.M0,digits=2))  e: $(round(ks.e,digits=2))  ω: $(round(ks.ω,digits=2)) γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=2))" * "m/s"
 kep_parms_str_short(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}) =
-    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "^m/_s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  e: $(round(ks.e,digits=2))"
+    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "m/s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  e: $(round(ks.e,digits=2))"
 
 
 using DataFrames, CSV

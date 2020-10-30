@@ -8,5 +8,6 @@ export GLO_RV
 include("RV_functions.jl")
 include("keplerian_derivatives.jl")
 include("prior_functions.jl")
+include("diagnostic_functions.jl")
 
 end # module

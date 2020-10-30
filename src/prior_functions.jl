@@ -110,16 +110,17 @@ end
 
 """
 Log of the Rayleigh PDF.
-Not properly normalized because of truncation
 """
-function log_Rayleigh(x::Real, σ::Real; d::Integer=0)
+function log_Rayleigh(x::Real, σ::Real; d::Integer=0, cutoff::Real=Inf)
     @assert 0 <= d <= 2
+    @assert cutoff > 0
+    cutoff == Inf ? normalization = 0 : normalization = -log(1 - exp(-cutoff * cutoff / 2 / σ / σ))
     if d == 0
-        0 <= x <= 1 ? val = -(x * x / (2 * σ * σ)) + log(x / σ / σ) : val = -Inf
+        0 <= x <= cutoff ? val = normalization - (x * x / 2 / σ / σ) + log(x / σ / σ) : val = -Inf
     elseif d == 1
-        0 <= x <= 1 ? val = 1 / x - x / σ / σ : val = 0
+        0 <= x <= cutoff ? val = 1 / x - x / σ / σ : val = 0
     elseif d == 2
-        0 <= x <= 1 ? val = -1 / x / x - 1 / σ / σ : val = 0
+        0 <= x <= cutoff ? val = -1 / x / x - 1 / σ / σ : val = 0
     end
     return val
 end
@@ -129,8 +130,7 @@ end
 Log of the 2D circle PDF
 """
 function log_circle(x::Vector{<:Real}, min_max_r::Vector{<:Real}; d::Vector{<:Integer}=[0,0])
-    @assert minimum(d) == 0
-    @assert maximum(d) <= 2
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
 
     @assert length(x) == length(min_max_r) == length(d) == 2
@@ -151,8 +151,7 @@ end
 Log of the 2D unit cone PDF
 """
 function log_cone(x::Vector{<:Real}; d::Vector{<:Integer}=[0,0])
-    @assert minimum(d) >= 0
-    @assert maximum(d) <= 2
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
 
     @assert length(x) == length(d) == 2
@@ -183,8 +182,7 @@ end
 Log of the 2D unit quadratic cone PDF
 """
 function log_quad_cone(x::Vector{<:Real}; d::Vector{<:Integer}=[0,0])
-    @assert minimum(d) >= 0
-    @assert maximum(d) <= 2
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
 
     @assert length(x) == length(d) == 2
@@ -215,8 +213,7 @@ end
 Log of the 2D unit cubic cone PDF
 """
 function log_cubic_cone(x::Vector{<:Real}; d::Vector{<:Integer}=[0,0])
-    @assert minimum(d) >= 0
-    @assert maximum(d) <= 2
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
 
     @assert length(x) == length(d) == 2
@@ -244,31 +241,30 @@ end
 
 
 """
-Log of the 2D rotated Rayleigh PDF that is cutoff at r=1
-ONLY ROUGHLY NORMALIZED according to σ = 1/5
+Log of the 2D rotated Rayleigh PDF
 """
-function log_rot_Rayleigh(x::Vector{<:Real}; d::Vector{<:Integer}=[0,0], σ=1/5)
-    @assert minimum(d) >= 0
-    @assert maximum(d) <= 2
+function log_rot_Rayleigh(x::Vector{<:Real}, σ::Real; d::Vector{<:Integer}=[0,0], cutoff::Real=Inf)
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
+    @assert cutoff > 0
 
     @assert length(x) == length(d) == 2
     r_sq = dot(x, x)  # x^2 + y^2
     r = sqrt(r_sq)
     σ_sq = σ ^ 2
-    log_norm = -2 * log(σ) - 0.454215
+    cutoff == Inf ? normalization = -log(2 * σ * σ * π * π * π) / 2: normalization = -log(2 * π) - log(sqrt(π / 2) * σ * erf(cutoff / sqrt(2) / σ) - cutoff * exp(- cutoff * cutoff / 2 / σ / σ))
     if d == [0,0]
-        0 <= r < 1 ? val = -r_sq / (2 * σ_sq) + log(r) + log_norm : val = -Inf
+        0 <= r < cutoff ? val = normalization - r_sq / (2 * σ_sq) + log(r) - (2 * log(σ)) : val = -Inf
     elseif d == [0,1]
-        0 <= r < 1 ? val = -x[2] * (r_sq - σ_sq) / (r_sq * σ_sq) : val = 0
+        0 <= r < cutoff ? val = -x[2] * (r_sq - σ_sq) / (r_sq * σ_sq) : val = 0
     elseif d == [0,2]
-        0 <= r < 1 ? val = -(x[1] ^ 4 + x[1] ^ 2 * (2 * x[2] ^ 2 - σ_sq) + x[2] ^ 2 * (x[2] ^ 2 + σ_sq)) / (r_sq ^ 2 * σ_sq) : val = 0
+        0 <= r < cutoff ? val = -(x[1] ^ 4 + x[1] ^ 2 * (2 * x[2] ^ 2 - σ_sq) + x[2] ^ 2 * (x[2] ^ 2 + σ_sq)) / (r_sq ^ 2 * σ_sq) : val = 0
     elseif d == [1,0]
-        0 <= r < 1 ? val = -x[1] * (r_sq - σ_sq) / (r_sq * σ_sq) : val = 0
+        0 <= r < cutoff ? val = -x[1] * (r_sq - σ_sq) / (r_sq * σ_sq) : val = 0
     elseif d == [1,1]
-        0 <= r < 1 ? val = -2 * x[1] * x[2] / r_sq ^ 2 : val = 0
+        0 <= r < cutoff ? val = -2 * x[1] * x[2] / r_sq ^ 2 : val = 0
     elseif d == [2,0]
-        0 <= r < 1 ? val = -(x[2] ^ 4 + x[2] ^ 2 * (2 * x[1] ^ 2 - σ_sq) + x[1] ^ 2 * (x[1] ^ 2 + σ_sq)) / (r_sq ^ 2 * σ_sq) : val = 0
+        0 <= r < cutoff ? val = -(x[2] ^ 4 + x[2] ^ 2 * (2 * x[1] ^ 2 - σ_sq) + x[1] ^ 2 * (x[1] ^ 2 + σ_sq)) / (r_sq ^ 2 * σ_sq) : val = 0
     end
     return val
 end
@@ -279,8 +275,7 @@ Log of the bivariate normal PDF
 NOTE THAT THAT WHEN USING lows!=[-∞,...], THIS IS NOT PROPERLY NORMALIZED
 """
 function log_bvnormal(x::Vector{T}, Σ::Cholesky{T,Matrix{T}}; μ::Vector{T}=zeros(T, length(x)), d::Vector{<:Integer}=[0,0], lows::Vector{T}=zeros(T, length(x)) .- Inf) where {T<:Real}
-    @assert minimum(d) >= 0
-    @assert maximum(d) <= 2
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
 
     @assert length(x) == length(d) == length(μ) == 2
@@ -291,15 +286,15 @@ function log_bvnormal(x::Vector{T}, Σ::Cholesky{T,Matrix{T}}; μ::Vector{T}=zer
     elseif sum(d) == 1
         y1 = Float64.(d)
         all(x .>= lows) ? val = -GLOM.dnlogLdθ(y1, Σ \ y) : val = 0
-    elseif d == [0,2]
-        y1 = y2 = [0, 1.]
-        all(x .>= lows) ? val = -GLOM.d2nlogLdθ(y2, [0,0.], Σ \ y, Σ \ y1) : val = 0
-    elseif d == [1,1]
-        y1 = [1, 0.]
-        y2 = [0, 1.]
-        all(x .>= lows) ? val = -GLOM.d2nlogLdθ(y2, [0,0.], Σ \ y, Σ \ y1) : val = 0
-    elseif d == [2,0]
-        y1 = y2 = [1, 0.]
+    else
+        if d == [0,2]
+            y1 = y2 = [0, 1.]
+        elseif d == [1,1]
+            y1 = [1, 0.]
+            y2 = [0, 1.]
+        elseif d == [2,0]
+            y1 = y2 = [1, 0.]
+        end
         all(x .>= lows) ? val = -GLOM.d2nlogLdθ(y2, [0,0.], Σ \ y, Σ \ y1) : val = 0
     end
     return val
@@ -345,7 +340,7 @@ end
 
 function logprior_e(e::Real; d::Integer=0)
     # return log_uniform(e, [prior_e_min, prior_e_max]; d=d)
-    return log_Rayleigh(e, 1/5; d=d)
+    return log_Rayleigh(e, 1/5; d=d, cutoff=1)
 end
 
 function logprior_ω(ω::Real; d::Integer=0)
@@ -354,7 +349,7 @@ end
 
 function logprior_hk(h::Real, k::Real; d::Vector{<:Integer}=[0,0])
     # return log_quad_cone([h, k]; d=d)
-    return log_rot_Rayleigh([h, k]; d=d)
+    return log_rot_Rayleigh([h, k], 1/5; d=d, cutoff=1)
 end
 
 function logprior_γ(γ::Unitful.Velocity; d::Integer=0)
@@ -371,8 +366,7 @@ function logprior_kepler(
     d::Vector{<:Integer}=[0,0,0,0,0,0],
     use_hk::Bool=false)
 
-    @assert minimum(d) == 0
-    @assert maximum(d) <= 2
+    @assert all(0 .<= d .<= 2)
     @assert sum(d) <= 2
 
     if use_hk
