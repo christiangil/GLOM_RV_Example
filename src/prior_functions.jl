@@ -252,7 +252,7 @@ function log_rot_Rayleigh(x::Vector{<:Real}, σ::Real; d::Vector{<:Integer}=[0,0
     r_sq = dot(x, x)  # x^2 + y^2
     r = sqrt(r_sq)
     σ_sq = σ ^ 2
-    cutoff == Inf ? normalization = -log(2 * σ * σ * π * π * π) / 2: normalization = -log(2 * π) - log(sqrt(π / 2) * σ * erf(cutoff / sqrt(2) / σ) - cutoff * exp(- cutoff * cutoff / 2 / σ / σ))
+    cutoff == Inf ? normalization = -log(2 * σ * σ * π * π * π) / 2 : normalization = -log(2 * π) - log(sqrt(π / 2) * σ * erf(cutoff / sqrt(2) / σ) - cutoff * exp(- cutoff * cutoff / 2 / σ / σ))
     if d == [0,0]
         0 <= r < cutoff ? val = normalization - r_sq / (2 * σ_sq) + log(r) - (2 * log(σ)) : val = -Inf
     elseif d == [0,1]
