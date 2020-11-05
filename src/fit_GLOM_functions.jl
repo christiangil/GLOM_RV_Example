@@ -124,18 +124,24 @@ function do_gp_fit_gridsearch!(f::Function, non_zero_hyper::Vector{<:Real}, ind:
 end
 
 
-function fit_GLOM!(problem_definition::GLOM.GLO, initial_total_hyperparameters::Vector{<:Real}, kernel_hyper_priors::Function, add_kick!::Function; g_tol=1e-6, iterations=200, print_stuff::Bool=true)
+function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
+    problem_definition::GLOM.GLO,
+    initial_total_hyperparameters::Vector{<:Real},
+    kernel_hyper_priors::Function,
+    add_kick!::Function;
+    g_tol=1e-6,
+    iterations=200,
+    print_stuff::Bool=true,
+    y_obs::Vector{<:Real}=problem_definition.y_obs)
 
     optim_cb_local(x::OptimizationState) = optim_cb(x; print_stuff=print_stuff)
-
-    workspace = GLOM.nlogL_matrix_workspace(problem_definition, initial_total_hyperparameters)
 
     # storing initial hyperparameters
     initial_x = GLOM.remove_zeros(initial_total_hyperparameters)
 
-    f_no_print_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.nlogL_GLOM!(workspace, problem_definition, non_zero_hyper)
-    g!_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.∇nlogL_GLOM!(workspace, problem_definition, non_zero_hyper)
-    h!_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.∇∇nlogL_GLOM!(workspace, problem_definition, non_zero_hyper)
+    f_no_print_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.nlogL_GLOM!(workspace, problem_definition, non_zero_hyper; y_obs=y_obs)
+    g!_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.∇nlogL_GLOM!(workspace, problem_definition, non_zero_hyper; y_obs=y_obs)
+    h!_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.∇∇nlogL_GLOM!(workspace, problem_definition, non_zero_hyper; y_obs=y_obs)
 
     function f_no_print(non_zero_hyper::Vector{T}) where {T<:Real}
         nprior = nlogprior_hyperparameters(kernel_hyper_priors, problem_definition.n_kern_hyper, non_zero_hyper, 0)
@@ -218,9 +224,26 @@ function fit_GLOM!(problem_definition::GLOM.GLO, initial_total_hyperparameters::
     # return Libc.time() - time0  # returns time used
 
     # vector of num_kernel_hyperparameters gp hyperparameters followed by the
-    # GLOM coefficients
+    # GLOM coefficients, Optim result, workspace used for fitting
     return GLOM.reconstruct_total_hyperparameters(problem_definition, result.minimizer), result
 end
+fit_GLOM(problem_definition::GLOM.GLO,
+    initial_total_hyperparameters::Vector{<:Real},
+    kernel_hyper_priors::Function,
+    add_kick!::Function;
+    g_tol=1e-6,
+    iterations=200,
+    print_stuff::Bool=true,
+    y_obs::Vector{<:Real}=problem_definition.y_obs) = fit_GLOM!(
+        GLOM.nlogL_matrix_workspace(problem_definition, initial_total_hyperparameters),
+        problem_definition,
+        initial_total_hyperparameters,
+        kernel_hyper_priors,
+        add_kick!;
+        g_tol=g_tol,
+        iterations=iterations,
+        print_stuff=print_stuff,
+        y_obs=y_obs)
 
 
 function GLOM_posteriors(
