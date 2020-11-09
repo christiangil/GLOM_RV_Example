@@ -224,7 +224,7 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
     # return Libc.time() - time0  # returns time used
 
     # vector of num_kernel_hyperparameters gp hyperparameters followed by the
-    # GLOM coefficients, Optim result, workspace used for fitting
+    # GLOM coefficients and Optim result
     return GLOM.reconstruct_total_hyperparameters(problem_definition, result.minimizer), result
 end
 fit_GLOM(problem_definition::GLOM.GLO,

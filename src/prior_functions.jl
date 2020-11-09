@@ -392,30 +392,33 @@ function logprior_kepler(
     return logP
 
 end
-logprior_kepler(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}; d::Vector{<:Integer}=zeros(Int64, n_kep_parms), use_hk::Bool=false) =
+logprior_kepler(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}; d::Vector{<:Integer}=zeros(Int, n_kep_parms), use_hk::Bool=false) =
     use_hk ? logprior_kepler(ks.K, ks.P, ks.M0, ks.h, ks.k, ks.γ; d=d, use_hk=use_hk) : logprior_kepler(ks.K, ks.P, ks.M0, ks.e, ks.ω, ks.γ; d=d, use_hk=use_hk)
 function logprior_kepler_tot(ks::Union{kep_signal, kep_signal_epicyclic, kep_signal_wright}; d_tot::Integer=0, use_hk::Bool=false)
     @assert 0 <= d_tot <= 2
     if d_tot == 0
-        return logprior_kepler(ks; d=zeros(Int64,n_kep_parms), use_hk=use_hk)
+        return logprior_kepler(ks; d=zeros(Int, n_kep_parms), use_hk=use_hk)
     elseif d_tot == 1
         G = zeros(n_kep_parms)
+        d = zeros(Int, n_kep_parms)
         for i in 1:n_kep_parms
-            d = zeros(Int64,n_kep_parms)
             d[i] = 1
             G[i] = logprior_kepler(ks; use_hk=use_hk, d=d)
+            d[i] = 0
         end
-        return grad
+        return G
     else
         H = zeros(n_kep_parms, n_kep_parms)
+        d = zeros(Int, n_kep_parms)
         for i in 1:n_kep_parms
             for j in 1:n_kep_parms
                 if i <= j
-                    d = zeros(Int64,n_kep_parms)
                     d[i] += 1
                     d[j] += 1
                     # println(typeof(d))
                     H[i, j] = logprior_kepler(ks; d=d, use_hk=use_hk)
+                    d[i] = 0
+                    d[j] = 0
                 end
             end
         end

@@ -2,13 +2,17 @@
 using Statistics
 using LinearAlgebra
 
+est_d(f::Function, input; dif::Real=1e-7) = (f(input + dif) - f(input)) ./ dif
+
 function est_∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::kep_signal;
     data_unit::Unitful.Velocity=1u"m/s",
-    include_priors::Bool=true
+    include_priors::Bool=true,
+    use_hk::Bool=true,
+    kwargs...
     ) where T<:Real
 
     K_u = unit(ks.K)
@@ -17,9 +21,9 @@ function est_∇nlogL_kep(
     og = ustrip.([ks.K, ks.P, ks.M0, ks.h, ks.k, ks.γ])
     function f2(vector)
         ks_internal = ks_from_vec(vector, K_u, P_u, γ_u; use_hk=true)
-        return GLOM.nlogL(covariance, remove_kepler(data, times, ks_internal; data_unit=data_unit)) - (include_priors * logprior_kepler(ks_internal; use_hk=true))
+        return GLOM.nlogL(covariance, remove_kepler(data, times, ks_internal; data_unit=data_unit)) - (include_priors * logprior_kepler(ks_internal; use_hk=use_hk))
     end
-    return GLOM.est_∇(f2, og)
+    return GLOM.est_∇(f2, og; kwargs...)
 end
 function est_∇nlogL_kep(
     data::Vector{T},
@@ -27,23 +31,27 @@ function est_∇nlogL_kep(
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::kep_signal_wright;
     data_unit::Unitful.Velocity=1u"m/s",
-    include_priors::Bool=true
+    include_priors::Bool=true,
+    use_hk::Bool=false,
+    kwargs...
     ) where T<:Real
 
     P_u = unit(ks.P)
     og = ustrip.([ks.P, ks.M0, ks.e])
     function f2(vector)
-        ks_internal = fit_kepler_wright_linear_step(data, times, covariance, vector[1] * P_u, vector[2], vector[3])
-        return GLOM.nlogL(covariance, remove_kepler(data, times, ks_internal; data_unit=data_unit)) - (include_priors * logprior_kepler(ks_internal))
+        ks_internal = fit_kepler_wright_linear_step(data, times, covariance, vector[1] * P_u, vector[2], vector[3]; data_unit=data_unit)
+        return GLOM.nlogL(covariance, remove_kepler(data, times, ks_internal; data_unit=data_unit)) - (include_priors * logprior_kepler(ks_internal; use_hk=use_hk))
     end
-    return GLOM.est_∇(f2, og)
+    return GLOM.est_∇(f2, og; kwargs...)
 end
 est_∇nlogL_kep(
     prob_def::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::Union{kep_signal, kep_signal_wright};
-    include_priors::Bool=true
-    ) where T<:Real = est_∇nlogL_kep(prob_def.GLO.y_obs, prob_def.time, covariance, ks; data_unit=prob_def.rv_unit*prob_def.GLO.normals[1], include_priors=include_priors)
+    include_priors::Bool=true,
+    use_hk::Bool=false,
+    kwargs...
+    ) where T<:Real = est_∇nlogL_kep(prob_def.GLO.y_obs, prob_def.time, covariance, ks; data_unit=prob_def.rv_unit*prob_def.GLO.normals[1], include_priors=include_priors, use_hk=use_hk, kwargs...)
 
 
 function test_∇nlogL_kep(

@@ -5,6 +5,9 @@ Pkg.instantiate()
 # for std()
 using Statistics
 
+# for det()
+using LinearAlgebra
+
 # for importing the data from CSV
 using DataFrames
 using CSV
@@ -33,7 +36,7 @@ kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
-star_rot_rate = 17.  # days
+star_rot_rate = 16.28  # days
 
 # importing Yale's 101501 data
 data = CSV.read("examples/101501_activity.csv", DataFrame)
@@ -46,6 +49,8 @@ GLOM_RV.remove_mean!(obs_xs)
 
 # CHANGE: rvs and their errors go here
 obs_rvs = data[!, "CCF RV [m/s]"]
+# inject_ks = GLOM_RV.kep_signal(; K=20u"m/s", P=sqrt(2)*50u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
+# obs_rvs[:] .+= inject_ks.(obs_xs.*u"d")
 obs_rvs_err = data[!, "CCF RV Error [m/s]"]
 
 # CHANGE: activity indicators and thier errors go here
@@ -107,11 +112,14 @@ else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
 end
 
-
-fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM!(problem_definition, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
+fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM(problem_definition, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
 # fit_GLOM returns a vector of num_kernel_hyperparameters gp hyperparameters
 # followed by the GLOM coefficients and the Optim result object
+workspace = GLOM.nlogL_matrix_workspace(problem_definition, fit1_total_hyperparameters)
 
+## Plotting initial results
+
+#=
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
 post, post_err, post_obs, post_obs_err = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
@@ -131,6 +139,7 @@ plot!(plt, plot_xs, GLOM_ind1_at_plot_xs, ribbons=GLOM_ind1_err_at_plot_xs, fill
 
 plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
 plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
+=#
 
 ## Coefficient exploration
 
@@ -151,7 +160,7 @@ for i in 1:length(possible_a0s)
     GLOM.normalize_problem_definition!(problem_definition)
     initial_total_hyperparameters = collect(Iterators.flatten(problem_definition.a0))
     append!(initial_total_hyperparameters, initial_hypers[kernel_choice])
-    fit_total_hyperparameters, result = GLOM_RV.fit_GLOM!(problem_definition, initial_total_hyperparameters, kernel_hyper_priors, add_kick!; print_stuff=false)
+    fit_total_hyperparameters, result = GLOM_RV.fit_GLOM(problem_definition, initial_total_hyperparameters, kernel_hyper_priors, add_kick!; print_stuff=false)
     append!(problem_definitions, [problem_definition])
     append!(nℓs, result.minimum)
     append!(all_fit_total_hyperparameters, [fit_total_hyperparameters])
@@ -220,8 +229,8 @@ using Distributed
 
 # CHANGE: can change full_fit to false to just do the epicyclic fit which is
 # ~40x faster. In that case you don't lose much by not distributing the compute
-use_distributed = false
-full_fit = false
+use_distributed = true
+full_fit = true
 
 # concurrency is weird so you may have to run this twice
 if use_distributed
@@ -234,20 +243,20 @@ if use_distributed
     GLOM.sendto(workers(), kernel_name=kernel_name)
     @everywhere GLOM.include_kernel(kernel_name)
 
-    GLOM.sendto(workers(), problem_definition_rv=problem_definition_rv, fit1_total_hyperparameters=fit1_total_hyperparameters, Σ_obs=Σ_obs, nlogprior_kernel=nlogprior_kernel)
+    GLOM.sendto(workers(), problem_definition_rv=problem_definition_rv, fit1_total_hyperparameters=fit1_total_hyperparameters, Σ_obs=Σ_obs, nlogprior_kernel=nlogprior_kernel, full_fit=full_fit)
 end
 
-@everywhere function fit_kep_hold_P(P::Unitful.Time; fast::Bool=false)
+@everywhere function fit_kep_hold_P(P::Unitful.Time; fast::Bool=false, print_stuff::Bool=false, fit_alpha::Real=3e-3)
     #initialize with fast epicyclic fit
     ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_epicyclic(P=P))
     if !fast
-        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(maximum([0.1u"m/s", ks.K]), ks.P, ks.M0, minimum([ks.e, 0.3]), ks.ω, ks.γ); print_stuff=false, hold_P=true, avoid_saddle=false)
+        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(maximum([0.1u"m/s", ks.K]), ks.P, ks.M0, minimum([ks.e, 0.3]), ks.ω, ks.γ); print_stuff=print_stuff, hold_P=true, avoid_saddle=false, fit_alpha=fit_alpha)
         return ks
     end
     return ks
 end
-@everywhere function kep_unnormalized_posterior_distributed(P::Unitful.Time; fast::Bool=false)
-    ks = fit_kep_hold_P(P; fast=fast)
+@everywhere function kep_unnormalized_posterior_distributed(P::Unitful.Time; fast::Bool=false, fit_alpha::Real=3e-3)
+    ks = fit_kep_hold_P(P; fast=fast, fit_alpha=fit_alpha)
     if ks == nothing
         return [-Inf, -Inf]
     else
@@ -263,6 +272,7 @@ end
 
 likelihoods = zeros(amount_of_periods)
 unnorm_posteriors = zeros(amount_of_periods)
+
 if use_distributed
     holder = pmap(x->kep_unnormalized_posterior_distributed(x), period_grid, batch_size=Int(floor(amount_of_periods / (nworkers() + 1)) + 1))
     likelihoods[:] = [holder[i][1] for i in 1:length(holder)]
@@ -279,4 +289,162 @@ best_period = best_periods[1]
 println("found period:    $(ustrip(best_period)) days")
 
 using Plots
-plot(ustrip.(period_grid), unnorm_posteriors)
+plot(log10.(ustrip.(period_grid)), likelihoods)
+plot(log10.(ustrip.(period_grid)), unnorm_posteriors)
+
+####################################################################################################
+# Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
+####################################################################################################
+
+current_hyper = GLOM.remove_zeros(fit1_total_hyperparameters)
+current_y = copy(problem_definition.y_obs)
+global current_ks = fit_kep_hold_P(best_period; print_stuff=true)
+
+println("before wright fit: ", GLOM_RV.kep_parms_str(current_ks))
+results = [Inf, Inf]
+result_change = Inf
+global num_iter = 0
+while result_change > 1e-4 && num_iter < 30
+    global current_ks = GLOM_RV.fit_kepler(problem_definition_rv, workspace.Σ_obs, current_ks; print_stuff=false, avoid_saddle=false)
+    current_y[:] = GLOM_RV.remove_kepler(problem_definition_rv, current_ks)
+    fit_total_hyperparameters, result = GLOM_RV.fit_GLOM!(
+        workspace,
+        problem_definition,
+        current_hyper,
+        kernel_hyper_priors,
+        add_kick!;
+        print_stuff=false,
+        y_obs=current_y)
+    current_hyper[:] = GLOM.remove_zeros(fit_total_hyperparameters)
+    results[:] = [results[2], copy(result.minimum)]
+    thing = results[1] - results[2]
+    if thing < 0; @warn "result increased occured on iteration $num_iter" end
+    global result_change = abs(thing)
+    global num_iter += 1
+    println("iteration:     ", num_iter)
+    println("current kep:   ", GLOM_RV.kep_parms_str(current_ks))
+    println("current hyper: ", current_hyper)
+    println("result change: ", result_change)
+end
+
+fit2_total_hyperparameters = GLOM.reconstruct_total_hyperparameters(problem_definition, current_hyper)
+
+###########################################################################################
+# Refitting GP with full planet signal at found period subtracted (K,P,M0,e,ω,γ-nonlinear)#
+###########################################################################################
+
+current_hyper[:] = GLOM.remove_zeros(fit2_total_hyperparameters)
+current_y[:] = GLOM_RV.remove_kepler(problem_definition_rv, current_ks)
+global current_ks = GLOM_RV.kep_signal(current_ks.K, current_ks.P, current_ks.M0, current_ks.e, current_ks.ω, current_ks.γ)
+println("\nbefore full fit: ", GLOM_RV.kep_parms_str(current_ks))
+results = [Inf, Inf]
+result_change = Inf
+global num_iter = 0
+while result_change > 1e-4 && num_iter < 30
+    global current_ks = GLOM_RV.fit_kepler(problem_definition_rv, workspace.Σ_obs, current_ks; print_stuff=false)
+    println(GLOM_RV.kep_parms_str(current_ks))
+    current_y[:] = GLOM_RV.remove_kepler(problem_definition_rv, current_ks)
+    fit_total_hyperparameters, result = GLOM_RV.fit_GLOM!(
+        workspace,
+        problem_definition,
+        current_hyper,
+        kernel_hyper_priors,
+        add_kick!;
+        print_stuff=false,
+        y_obs=current_y)
+    current_hyper[:] = GLOM.remove_zeros(fit_total_hyperparameters)
+    results[:] = [results[2], copy(result.minimum)]
+    thing = results[1] - results[2]
+    if thing < 0; @warn "result increased occured on iteration $num_iter" end
+    global result_change = abs(thing)
+    global num_iter += 1
+    println("iteration:     ", num_iter)
+    println("current kep:   ", GLOM_RV.kep_parms_str(current_ks))
+    println("current hyper: ", current_hyper)
+    println("result change: ", result_change)
+end
+
+fit3_total_hyperparameters = GLOM.reconstruct_total_hyperparameters(problem_definition, current_hyper)
+full_ks = GLOM_RV.kep_signal(current_ks.K, current_ks.P, current_ks.M0, current_ks.e, current_ks.ω, current_ks.γ)
+
+###################
+# Post planet fit #
+###################
+
+println("fit hyperparameters")
+println(fit1_total_hyperparameters)
+println(uE1, "\n")
+
+println("kepler hyperparameters")
+println(fit3_total_hyperparameters)
+fit_nlogL2 = GLOM.nlogL_GLOM!(workspace, problem_definition, fit3_total_hyperparameters; y_obs=current_y)
+uE2 = -fit_nlogL2 - nlogprior_hyperparameters(fit3_total_hyperparameters, 0) + GLOM_RV.logprior_kepler(full_ks; use_hk=true)
+println(uE2, "\n")
+
+println("best fit keplerian")
+println(GLOM_RV.kep_parms_str(full_ks))
+
+##################################################################################
+# refitting noise model to see if a better model was found during planet fitting #
+##################################################################################
+
+fit1_total_hyperparameters_temp, result = GLOM_RV.fit_GLOM(
+    problem_definition,
+    current_hyper,
+    kernel_hyper_priors,
+    add_kick!)
+
+println(result)
+
+println("first fit hyperparameters")
+println(fit1_total_hyperparameters)
+println(uE1, "\n")
+
+println("fit after planet hyperparameters")
+println(fit1_total_hyperparameters_temp)
+fit_nlogL1_temp = GLOM.nlogL_GLOM!(workspace, problem_definition, fit1_total_hyperparameters_temp)
+uE1_temp = -fit_nlogL1_temp - nlogprior_hyperparameters(fit1_total_hyperparameters_temp, 0)
+println(uE1_temp, "\n")
+
+if uE1_temp > uE1
+    println("new fit is better, switching hps")
+    fit1_total_hyperparameters[:] = fit1_total_hyperparameters_temp
+    fit_nlogL1 = fit_nlogL1_temp
+    uE1 = uE1_temp
+end
+
+##########################
+# Evidence approximation #
+##########################
+
+# no planet
+H1 = (GLOM.∇∇nlogL_GLOM(problem_definition, fit1_total_hyperparameters)
+    + nlogprior_hyperparameters(GLOM.remove_zeros(fit1_total_hyperparameters), 2))
+try
+    global E1 = GLOM.log_laplace_approximation(H1, -uE1, 0)
+catch
+    println("Laplace approximation failed for initial GP fit")
+    println("det(H1): $(det(H1)) (should've been positive)")
+    global E1 = 0
+end
+
+# planet
+H2 = Matrix(GLOM_RV.∇∇nlogL_GLOM_and_planet!(workspace, problem_definition_rv, fit3_total_hyperparameters, full_ks; include_kepler_priors=true))
+n_hyper = length(GLOM.remove_zeros(fit3_total_hyperparameters))
+H2[1:n_hyper, 1:n_hyper] += nlogprior_hyperparameters(GLOM.remove_zeros(fit3_total_hyperparameters), 2)
+try
+    global E2 = log_laplace_approximation(Symmetric(H2), -uE2, 0)
+catch
+    println("Laplace approximation failed for planet fit")
+    println("det(H2): $(det(H2)) (should've been positive)")
+    global E2 = 0
+end
+
+println("\nlog likelihood for GLOM model: " * string(-fit_nlogL1))
+println("log likelihood for GLOM + planet model: " * string(-fit_nlogL2))
+
+println("\nunnormalized posterior for GLOM model: " * string(uE1))
+println("unnormalized posterior for GLOM + planet model: " * string(uE2))
+
+println("\nevidence for GLOM model: " * string(E1))
+println("evidence for GLOM + planet model: " * string(E2))
