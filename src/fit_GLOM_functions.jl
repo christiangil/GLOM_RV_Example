@@ -3,8 +3,7 @@
 
 const d_err_msg = "d needs to be 0 <= d <= 2"
 using Optim
-import GPLinearODEMaker
-GLOM = GPLinearODEMaker
+import GPLinearODEMaker; GLOM = GPLinearODEMaker
 
 # hyperparameter priors for kernels with one lenghtscale i.e. pp, se, m52
 function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Real, σ::Real)
@@ -275,4 +274,49 @@ function valid_a0s!(possible_a0s::Vector, a0::Matrix; i::Int=1)
         a0[i] = 1
         valid_a0s!(possible_a0s, a0; i=i+1)
     end
+end
+
+
+function fit_GLOM_and_kep!(
+    workspace::GLOM.nlogL_matrix_workspace,
+    prob_def_rv::GLO_RV,
+    init_total_hyper::Vector{<:Real},
+    kernel_hyper_priors::Function,
+    add_kick!::Function,
+    current_ks::Union{kep_signal, kep_signal_wright};
+    avoid_saddle::Bool=true,
+    print_stuff::Bool=true)
+
+    current_hyper = GLOM.remove_zeros(init_total_hyper)
+    current_y = copy(prob_def_rv.GLO.y_obs)
+    results = [Inf, Inf]
+    result_change = Inf
+    num_iter = 0
+    while result_change > 1e-4 && num_iter < 30
+        current_ks = fit_kepler(prob_def_rv, workspace.Σ_obs, current_ks; print_stuff=false, avoid_saddle=avoid_saddle)
+        current_y[:] = remove_kepler(prob_def_rv, current_ks)
+        fit_total_hyperparameters, result = fit_GLOM!(
+            workspace,
+            prob_def_rv.GLO,
+            current_hyper,
+            kernel_hyper_priors,
+            add_kick!;
+            print_stuff=false,
+            y_obs=current_y)
+        current_hyper[:] = GLOM.remove_zeros(fit_total_hyperparameters)
+        results[:] = [results[2], copy(result.minimum)]
+        result_dif = results[1] - results[2]
+        if result_dif < 0; @warn "result increased occured on iteration $num_iter" end
+        result_change = abs(result_dif)
+        num_iter += 1
+        if print_stuff
+            println("iteration:     ", num_iter)
+            println("current kep:   ", kep_parms_str(current_ks))
+            println("current hyper: ", current_hyper)
+            println("result change: ", result_change)
+        end
+    end
+    fit_total_hyperparameters = GLOM.reconstruct_total_hyperparameters(prob_def_rv.GLO, current_hyper)
+    return fit_total_hyperparameters, current_ks
+
 end
