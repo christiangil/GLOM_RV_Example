@@ -230,19 +230,13 @@ fit_GLOM(problem_definition::GLOM.GLO,
     initial_total_hyperparameters::Vector{<:Real},
     kernel_hyper_priors::Function,
     add_kick!::Function;
-    g_tol=1e-6,
-    iterations=200,
-    print_stuff::Bool=true,
-    y_obs::Vector{<:Real}=problem_definition.y_obs) = fit_GLOM!(
+    kwargs...) = fit_GLOM!(
         GLOM.nlogL_matrix_workspace(problem_definition, initial_total_hyperparameters),
         problem_definition,
         initial_total_hyperparameters,
         kernel_hyper_priors,
         add_kick!;
-        g_tol=g_tol,
-        iterations=iterations,
-        print_stuff=print_stuff,
-        y_obs=y_obs)
+        kwargs...)
 
 
 function GLOM_posteriors(

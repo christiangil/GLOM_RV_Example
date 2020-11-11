@@ -246,17 +246,17 @@ if use_distributed
     GLOM.sendto(workers(), problem_definition_rv=problem_definition_rv, fit1_total_hyperparameters=fit1_total_hyperparameters, Σ_obs=Σ_obs, nlogprior_kernel=nlogprior_kernel, full_fit=full_fit)
 end
 
-@everywhere function fit_kep_hold_P(P::Unitful.Time; fast::Bool=false, print_stuff::Bool=false, fit_alpha::Real=3e-3)
+@everywhere function fit_kep_hold_P(P::Unitful.Time; fast::Bool=false, kwargs...)
     #initialize with fast epicyclic fit
     ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_epicyclic(P=P))
     if !fast
-        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(maximum([0.1u"m/s", ks.K]), ks.P, ks.M0, minimum([ks.e, 0.3]), ks.ω, ks.γ); print_stuff=print_stuff, hold_P=true, avoid_saddle=false, fit_alpha=fit_alpha)
+        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(maximum([0.1u"m/s", ks.K]), ks.P, ks.M0, minimum([ks.e, 0.3]), ks.ω, ks.γ); hold_P=true, avoid_saddle=false, kwargs...)
         return ks
     end
     return ks
 end
-@everywhere function kep_unnormalized_posterior_distributed(P::Unitful.Time; fast::Bool=false, fit_alpha::Real=3e-3)
-    ks = fit_kep_hold_P(P; fast=fast, fit_alpha=fit_alpha)
+@everywhere function kep_unnormalized_posterior_distributed(P::Unitful.Time; kwargs...)
+    ks = fit_kep_hold_P(P; kwargs...)
     if ks == nothing
         return [-Inf, -Inf]
     else
@@ -265,7 +265,7 @@ end
             fit1_total_hyperparameters;
             Σ_obs=Σ_obs,
             y_obs=GLOM_RV.remove_kepler(problem_definition_rv, ks))
-        return [-val, GLOM_RV.logprior_kepler(ks; use_hk=true) - nlogprior_kernel - val]
+        return [-val, GLOM_RV.logprior_kepler(ks; use_hk=false) - nlogprior_kernel - val]
     end
 end
 @everywhere kep_unnormalized_posterior_distributed(P::Unitful.Time) = kep_unnormalized_posterior_distributed(P; fast=!full_fit)

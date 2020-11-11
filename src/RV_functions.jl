@@ -774,7 +774,7 @@ function ∇nlogL_kep!(
 end
 function ∇nlogL_kep(data, times, covariance, init_ks::kep_signal_wright; kwargs...)
     ks, ϵ_int, ϵ_inv, design_matrix, E_t = fit_kepler_wright_linear_step(data, times, covariance, init_ks.P, init_ks.M0, init_ks.e; data_unit=data_unit, return_extra=true)
-    buffer = kep_buffer_wright(ks, remove_kepler(data, times, ks; data_unit=data_unit), -logprior_kepler(ks), ϵ_int, ϵ_inv, design_matrix, E_t)
+    buffer = kep_buffer_wright(ks, remove_kepler(data, times, ks; data_unit=data_unit), -logprior_kepler(ks; use_hk=false), ϵ_int, ϵ_inv, design_matrix, E_t)
     G = zeros(3 - hold_P)
     ∇nlogL_kep!(G, data, times, covariance, buffer; kwargs...)
     return G
@@ -813,7 +813,7 @@ function fit_kepler_wright(
     else
         current_x = ustrip.([ks.P, ks.M0, ks.e])
     end
-    buffer = kep_buffer_wright(ks, remove_kepler(data, times, ks; data_unit=data_unit), -logprior_kepler(ks), ϵ_int, ϵ_inv, design_matrix, E_t)
+    buffer = kep_buffer_wright(ks, remove_kepler(data, times, ks; data_unit=data_unit), -logprior_kepler(ks; use_hk=false), ϵ_int, ϵ_inv, design_matrix, E_t)
     last_x = similar(current_x)
 
     function calculate_common!(x::Vector{T}, last_x::Vector{T}, buffer::kep_buffer_wright) where {T<:Real}
@@ -828,7 +828,7 @@ function fit_kepler_wright(
                 else
                     buffer.ks, buffer.ϵ_int, buffer.ϵ_inv, buffer.design_matrix, buffer.E_t = fit_kepler_wright_linear_step(data, times, covariance, x[1] * P_u, x[2], x[3]; data_unit=data_unit, return_extra=true)
                 end
-                buffer.nprior = -logprior_kepler(buffer.ks)
+                buffer.nprior = -logprior_kepler(buffer.ks; use_hk=false)
             end
             buffer.nprior == Inf ? buffer.rm_kep = zeros(length(buffer.rm_kep)) : buffer.rm_kep = remove_kepler(data, times, buffer.ks; data_unit=data_unit)
         end
