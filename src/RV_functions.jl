@@ -275,8 +275,8 @@ function ∇nlogL_kep!(
         d[i] = 0
     end
 end
-∇nlogL_kep(data, times, covariance, ks; kwargs...) =
-    ∇nlogL_kep(data, times, covariance, ks, remove_kepler(data, times, ks; data_unit=data_unit); kwargs...)
+∇nlogL_kep(data, times, covariance, ks; data_unit=data_unit, kwargs...) =
+    ∇nlogL_kep(data, times, covariance, ks, remove_kepler(data, times, ks; data_unit=data_unit); data_unit=data_unit, kwargs...)
 function ∇nlogL_kep(data, times, covariance, ks, y; G=zeros(typeof(data[1]), n_kep_parms), d=zeros(Int, n_kep_parms), kwargs...)
     ∇nlogL_kep!(G, d, data, times, covariance, ks, y; kwargs...)
     return G
@@ -745,7 +745,7 @@ function ∇nlogL_kep!(
     G[end] = GLOM.dnlogLdθ(-dude, α_rm_kep)
 
     if !hold_P
-        t = ustrip.(uconvert.(unit(buffer.ks.P), times))
+        t = convert_and_strip_units.(unit(buffer.ks.P), times)
         P = ustrip(buffer.ks.P)
         dϕdP = (-2 * π * sqrt_mod_e2 / P / P) .* t ./ factor2
         dudP, dβdP = dudx!(dFdx_holder, dϕdP)
@@ -911,15 +911,13 @@ function remove_kepler(
 
     validate_kepler_dorder(d)
     n_out = Int(length(data) / length(times))
-    if all(d .== 0)
+    if findfirst(!iszero, d) == nothing
         y = copy(data)
-        # if ustrip(ks.K) != 0; y[1:length(times)] -= uconvert.(unit(data_unit), ks.(times)) ./ data_unit end
         if ustrip(ks.K) != 0; y[1:n_out:end] -= uconvert.(unit(data_unit), ks.(times)) ./ data_unit end
     else  # this uses h and k not e and ω
         @assert typeof(ks) == kep_signal
         y = zeros(length(data))
         kep_deriv_simple(t) = kep_deriv(ks, t, d)
-        # y[1:length(times)] -= ustrip.(kep_deriv_simple.(times)) ./ convert_and_strip_units(unit(ks.K), data_unit)
         y[1:n_out:end] -= ustrip.(kep_deriv_simple.(times)) ./ convert_and_strip_units(unit(ks.K), data_unit)
     end
     return y
@@ -968,7 +966,6 @@ function ∇∇nlogL_kep(
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::kep_signal;
     data_unit::Unitful.Velocity=1u"m/s",
-    fix_jank::Bool=false,
     include_priors::Bool=false) where T<:Real
 
     # prob_def_rv -> data, times, data_unit
@@ -989,13 +986,6 @@ function ∇∇nlogL_kep(
                 H[i, j] = GLOM.d2nlogLdθ(y2, y12, α, covariance \ y1)
             end
         end
-    end
-
-    # for some reason dhdk and (dk)^2 aren't quite working
-    if fix_jank
-        est_H = est_∇∇nlogL_kep(data, times, covariance, ks; data_unit=data_unit)
-        H[5, 5] = est_H[5, 5]
-        H[4, 5] = est_H[4, 5]
     end
 
     if include_priors
@@ -1021,7 +1011,7 @@ function ∇∇nlogL_GLOM_and_planet!(
     full_H[1:n_hyper, 1:n_hyper] = GLOM.∇∇nlogL_GLOM(
         prob_def_rv.GLO, total_hyperparameters; Σ_obs=workspace.Σ_obs, y_obs=remove_kepler(prob_def_rv, ks))
 
-    full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, workspace.Σ_obs, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], fix_jank=true, include_priors=include_kepler_priors)
+    full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, workspace.Σ_obs, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], include_priors=include_kepler_priors)
 
     # TODO allow y and α to be passed to ∇∇nlogL_kep
     y = remove_kepler(prob_def_rv, ks)

@@ -418,3 +418,6 @@ println("unnormalized posterior for GLOM + planet model: " * string(uE2))
 
 println("\nevidence for GLOM model: " * string(E1))
 println("evidence for GLOM + planet model: " * string(E2))
+
+# # This should be pretty close to true
+# GLOM_RV.test_∇∇nlogL_kep(problem_definition_rv, workspace.Σ_obs, current_ks; include_priors=true)
