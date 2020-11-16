@@ -79,7 +79,7 @@ n_dif = 2 + 1
 # CHANGE: consider changing a0 (the GLOM coefficients that are used, see
 # commented lines below)
 # If all a's active:
-# problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, ys; noise=noise, a0=[[1. 1 1];[1 1 1];[1 1 1]])
+# problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 1];[1 1 1];[1 1 1]])
 problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 0];[1 0 1];[1 0 1]])
 
 # Makes the std of each output equal to 1, improves fitting stability
