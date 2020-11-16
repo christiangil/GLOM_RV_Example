@@ -29,7 +29,7 @@ end
 syms = [K, P, M0, h, k, γ]
 n_kep = length(syms)
 
-kep = K / (1 - e * cosE) * (e_mod * cosE * cosω - sqrt(e_mod) * sinE * sinω) + γ
+kep = K / factor * (e_mod * cosE * cosω - sqrt(e_mod) * sinE * sinω) + γ
 dkeps = [kep_EA_simplify(diff(kep, sym)) for sym in syms]
 ddkeps = [[kep_EA_simplify(diff(dkep, sym)) for dkep in dkeps] for sym in syms]
 
@@ -164,6 +164,7 @@ begin
 		end
 
 		func_str = SymEngine.toString(func)
+		func_str = replace(func_str, "π_sym"=>"π")
 		write(io, "    if dorder ==" * string(dorder) * "\n")
 		write(io, "        func = " * func_str * "\n    end\n\n")
 	end

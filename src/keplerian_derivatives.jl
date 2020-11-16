@@ -49,7 +49,7 @@ function kep_deriv(
     end
 
     if dorder ==[0, 1, 0, 0, 0, 0]
-        func = K*(2*h*j*t*cosEA*π_sym/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π_sym/(P^2*e*qmod))/qmod + 2*K*e*t*sinEA*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^3)
+        func = K*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod + 2*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^3)
     end
 
     if dorder ==[0, 0, 1, 0, 0, 0]
@@ -73,11 +73,11 @@ function kep_deriv(
     end
 
     if dorder ==[1, 1, 0, 0, 0, 0]
-        func = (2*h*j*t*cosEA*π_sym/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π_sym/(P^2*e*qmod))/qmod + 2*e*t*sinEA*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^3)
+        func = (2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod + 2*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^3)
     end
 
     if dorder ==[0, 2, 0, 0, 0, 0]
-        func = K*(4*k*t^2*jsq*sinEA^2*π_sym^2/(P^4*qmod^3) + 4*h*j*t^2*sinEA*π_sym^2/(P^4*e*qmod^2) - 4*k*t^2*jsq*cosEA*π_sym^2/(P^4*e*qmod^2) + 4*h*j*t^2*sinEA*cosEA*π_sym^2/(P^4*qmod^3) - 4*h*j*t*cosEA*π_sym/(P^3*e*qmod) - 4*k*t*jsq*sinEA*π_sym/(P^3*e*qmod))/qmod - 4*K*e*t^2*cosEA*π_sym^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^4*qmod^4) + 12*K*t^2*esq*sinEA^2*π_sym^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^4*qmod^5) - 4*K*e*t*sinEA*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^3*qmod^3) + 4*K*e*t*sinEA*π_sym*(2*h*j*t*cosEA*π_sym/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π_sym/(P^2*e*qmod))/(P^2*qmod^3)
+        func = K*(4*k*t^2*jsq*sinEA^2*π^2/(P^4*qmod^3) + 4*h*j*t^2*sinEA*π^2/(P^4*e*qmod^2) - 4*k*t^2*jsq*cosEA*π^2/(P^4*e*qmod^2) + 4*h*j*t^2*sinEA*cosEA*π^2/(P^4*qmod^3) - 4*h*j*t*cosEA*π/(P^3*e*qmod) - 4*k*t*jsq*sinEA*π/(P^3*e*qmod))/qmod - 4*K*e*t^2*cosEA*π^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^4*qmod^4) + 12*K*t^2*esq*sinEA^2*π^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^4*qmod^5) - 4*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^3*qmod^3) + 4*K*e*t*sinEA*π*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/(P^2*qmod^3)
     end
 
     if dorder ==[1, 0, 1, 0, 0, 0]
@@ -85,7 +85,7 @@ function kep_deriv(
     end
 
     if dorder ==[0, 1, 1, 0, 0, 0]
-        func = K*(2*k*t*jsq*sinEA^2*π_sym/(P^2*qmod^3) + 2*h*j*t*sinEA*π_sym/(P^2*e*qmod^2) - 2*k*t*jsq*cosEA*π_sym/(P^2*e*qmod^2) + 2*h*j*t*sinEA*cosEA*π_sym/(P^2*qmod^3))/qmod + K*e*sinEA*(2*h*j*t*cosEA*π_sym/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π_sym/(P^2*e*qmod))/qmod^3 - 2*K*e*t*cosEA*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^4) + 2*K*e*t*sinEA*π_sym*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))/(P^2*qmod^3) + 6*K*t*esq*sinEA^2*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^5)
+        func = K*(2*k*t*jsq*sinEA^2*π/(P^2*qmod^3) + 2*h*j*t*sinEA*π/(P^2*e*qmod^2) - 2*k*t*jsq*cosEA*π/(P^2*e*qmod^2) + 2*h*j*t*sinEA*cosEA*π/(P^2*qmod^3))/qmod + K*e*sinEA*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod^3 - 2*K*e*t*cosEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^4) + 2*K*e*t*sinEA*π*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))/(P^2*qmod^3) + 6*K*t*esq*sinEA^2*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^5)
     end
 
     if dorder ==[0, 0, 2, 0, 0, 0]
@@ -97,7 +97,7 @@ function kep_deriv(
     end
 
     if dorder ==[0, 1, 0, 1, 0, 0]
-        func = K*(2*j*t*cosEA*π_sym/(P^2*e*qmod) - 2*h^2*j*t*cosEA*π_sym/(P^2*e^3*qmod) + 2*h^2*j*t*cosEA^2*π_sym/(P^2*e^2*qmod^2) - 2*h^2*j*t*sinEA^2*π_sym/(P^2*e^2*qmod^2) - 4*h*k*t*sinEA*π_sym/(P^2*e*qmod) - 2*h^2*t*cosEA*π_sym/(P^2*e*j*qmod) - 2*h*k*t*jsq*sinEA*π_sym/(P^2*e^3*qmod) - 2*h*k*t*jsq*sinEA^3*π_sym/(P^2*e*qmod^3) - 2*h^2*j*t*sinEA^2*cosEA*π_sym/(P^2*e*qmod^3) + 4*h*k*t*jsq*sinEA*cosEA*π_sym/(P^2*e^2*qmod^2))/qmod - K*(-h*cosEA/e + h*sinEA^2/qmod)*(2*h*j*t*cosEA*π_sym/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π_sym/(P^2*e*qmod))/qmod^2 - K*(-2*h*t*sinEA*π_sym/(P^2*e*qmod) + 2*e*h*t*sinEA^3*π_sym/(P^2*qmod^3) - 4*h*t*sinEA*cosEA*π_sym/(P^2*qmod^2))*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^2 + 2*K*e*t*sinEA*π_sym*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))/(P^2*qmod^3) - 4*K*e*t*sinEA*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)/(P^2*qmod^4)
+        func = K*(2*j*t*cosEA*π/(P^2*e*qmod) - 2*h^2*j*t*cosEA*π/(P^2*e^3*qmod) + 2*h^2*j*t*cosEA^2*π/(P^2*e^2*qmod^2) - 2*h^2*j*t*sinEA^2*π/(P^2*e^2*qmod^2) - 4*h*k*t*sinEA*π/(P^2*e*qmod) - 2*h^2*t*cosEA*π/(P^2*e*j*qmod) - 2*h*k*t*jsq*sinEA*π/(P^2*e^3*qmod) - 2*h*k*t*jsq*sinEA^3*π/(P^2*e*qmod^3) - 2*h^2*j*t*sinEA^2*cosEA*π/(P^2*e*qmod^3) + 4*h*k*t*jsq*sinEA*cosEA*π/(P^2*e^2*qmod^2))/qmod - K*(-h*cosEA/e + h*sinEA^2/qmod)*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod^2 - K*(-2*h*t*sinEA*π/(P^2*e*qmod) + 2*e*h*t*sinEA^3*π/(P^2*qmod^3) - 4*h*t*sinEA*cosEA*π/(P^2*qmod^2))*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^2 + 2*K*e*t*sinEA*π*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))/(P^2*qmod^3) - 4*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)/(P^2*qmod^4)
     end
 
     if dorder ==[0, 0, 1, 1, 0, 0]
@@ -113,7 +113,7 @@ function kep_deriv(
     end
 
     if dorder ==[0, 1, 0, 0, 1, 0]
-        func = K*(-4*k^2*t*sinEA*π_sym/(P^2*e*qmod) + 2*t*jsq*sinEA*π_sym/(P^2*e*qmod) - 2*k^2*t*jsq*sinEA*π_sym/(P^2*e^3*qmod) - 2*k^2*t*jsq*sinEA^3*π_sym/(P^2*e*qmod^3) - 2*h*j*k*t*cosEA*π_sym/(P^2*e^3*qmod) + 2*h*j*k*t*cosEA^2*π_sym/(P^2*e^2*qmod^2) - 2*h*j*k*t*sinEA^2*π_sym/(P^2*e^2*qmod^2) + 4*k^2*t*jsq*sinEA*cosEA*π_sym/(P^2*e^2*qmod^2) - 2*h*k*t*cosEA*π_sym/(P^2*e*j*qmod) - 2*h*j*k*t*sinEA^2*cosEA*π_sym/(P^2*e*qmod^3))/qmod - K*(-k*cosEA/e + k*sinEA^2/qmod)*(2*h*j*t*cosEA*π_sym/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π_sym/(P^2*e*qmod))/qmod^2 - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-2*k*t*sinEA*π_sym/(P^2*e*qmod) + 2*e*k*t*sinEA^3*π_sym/(P^2*qmod^3) - 4*k*t*sinEA*cosEA*π_sym/(P^2*qmod^2))/qmod^2 + 2*K*e*t*sinEA*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))*π_sym/(P^2*qmod^3) - 4*K*e*t*sinEA*π_sym*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)/(P^2*qmod^4)
+        func = K*(-4*k^2*t*sinEA*π/(P^2*e*qmod) + 2*t*jsq*sinEA*π/(P^2*e*qmod) - 2*k^2*t*jsq*sinEA*π/(P^2*e^3*qmod) - 2*k^2*t*jsq*sinEA^3*π/(P^2*e*qmod^3) - 2*h*j*k*t*cosEA*π/(P^2*e^3*qmod) + 2*h*j*k*t*cosEA^2*π/(P^2*e^2*qmod^2) - 2*h*j*k*t*sinEA^2*π/(P^2*e^2*qmod^2) + 4*k^2*t*jsq*sinEA*cosEA*π/(P^2*e^2*qmod^2) - 2*h*k*t*cosEA*π/(P^2*e*j*qmod) - 2*h*j*k*t*sinEA^2*cosEA*π/(P^2*e*qmod^3))/qmod - K*(-k*cosEA/e + k*sinEA^2/qmod)*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod^2 - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-2*k*t*sinEA*π/(P^2*e*qmod) + 2*e*k*t*sinEA^3*π/(P^2*qmod^3) - 4*k*t*sinEA*cosEA*π/(P^2*qmod^2))/qmod^2 + 2*K*e*t*sinEA*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))*π/(P^2*qmod^3) - 4*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)/(P^2*qmod^4)
     end
 
     if dorder ==[0, 0, 1, 0, 1, 0]
