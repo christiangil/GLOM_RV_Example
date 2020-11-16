@@ -45,13 +45,13 @@ function est_∇nlogL_kep(
     return GLOM.est_∇(f2, og; kwargs...)
 end
 est_∇nlogL_kep(
-    prob_def::GLO_RV,
+    prob_def_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::Union{kep_signal, kep_signal_wright};
     include_priors::Bool=true,
     use_hk::Bool=false,
     kwargs...
-    ) where T<:Real = est_∇nlogL_kep(prob_def.GLO.y_obs, prob_def.time, covariance, ks; data_unit=prob_def.rv_unit*prob_def.GLO.normals[1], include_priors=include_priors, use_hk=use_hk, kwargs...)
+    ) where T<:Real = est_∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, include_priors=include_priors, use_hk=use_hk, kwargs...)
 
 
 function test_∇nlogL_kep(
@@ -68,11 +68,11 @@ function test_∇nlogL_kep(
     return GLOM.test_∇(grad_est, grad; function_name="∇nlogL_kep")
 end
 test_∇nlogL_kep(
-    prob_def::GLO_RV,
+    prob_def_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::Union{kep_signal, kep_signal_wright};
     include_priors::Bool=true
-    ) where T<:Real = test_∇nlogL_kep(prob_def.GLO.y_obs, prob_def.time, covariance, ks; data_unit=prob_def.rv_unit*prob_def.GLO.normals[1], include_priors=include_priors)
+    ) where T<:Real = test_∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, include_priors=include_priors)
 
 
 
@@ -92,11 +92,11 @@ function est_∇∇nlogL_kep(
     return GLOM.est_∇∇(g2, og)
 end
 est_∇∇nlogL_kep(
-    prob_def::GLO_RV,
+    prob_def_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::kep_signal;
     kwargs...
-    ) where T<:Real = est_∇∇nlogL_kep(prob_def.GLO.y_obs, prob_def.time, covariance, ks; data_unit=prob_def.rv_unit*prob_def.GLO.normals[1], kwargs...)
+    ) where T<:Real = est_∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
 
 
 function test_∇∇nlogL_kep(
@@ -112,8 +112,8 @@ function test_∇∇nlogL_kep(
     return GLOM.test_∇∇(hess_est, hess; function_name="∇∇nlogL_kep")
 end
 test_∇∇nlogL_kep(
-    prob_def::GLO_RV,
+    prob_def_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::kep_signal;
     kwargs...
-    ) where T<:Real = test_∇∇nlogL_kep(prob_def.GLO.y_obs, prob_def.time, covariance, ks; data_unit=prob_def.rv_unit*prob_def.GLO.normals[1], kwargs...)
+    ) where T<:Real = test_∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
