@@ -49,8 +49,8 @@ GLOM_RV.remove_mean!(obs_xs)
 
 # CHANGE: rvs and their errors go here
 obs_rvs = data[!, "CCF RV [m/s]"]
-# inject_ks = GLOM_RV.kep_signal(; K=20u"m/s", P=sqrt(2)*50u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
-# obs_rvs[:] .+= inject_ks.(obs_xs.*u"d")
+inject_ks = GLOM_RV.kep_signal(; K=50u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
+obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
 obs_rvs_err = data[!, "CCF RV Error [m/s]"]
 
 # CHANGE: activity indicators and thier errors go here
@@ -79,8 +79,8 @@ n_dif = 2 + 1
 # CHANGE: consider changing a0 (the GLOM coefficients that are used, see
 # commented lines below)
 # If all a's active:
-# problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 1];[1 1 1];[1 1 1]])
-problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 0];[1 0 1];[1 0 1]])
+problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 1];[1 1 1];[1 1 1]])
+# problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 0];[1 0 1];[1 0 1]])
 
 # Makes the std of each output equal to 1, improves fitting stability
 # the normalizations are stored in problem_definition.normals
@@ -191,7 +191,7 @@ plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fill
 ## Finding a planet?
 
 nlogprior_hyperparameters(total_hyper::Vector, d::Int) = GLOM_RV.nlogprior_hyperparameters(kernel_hyper_priors, problem_definition.n_kern_hyper, total_hyper, d)
-problem_definition_rv = GLO_RV(problem_definition)
+problem_definition_rv = GLO_RV(problem_definition, 1u"d", problem_definition.normals[1]u"m/s")
 
 ############
 # Post fit #
@@ -290,9 +290,9 @@ best_period = best_periods[1]
 
 println("found period:    $(ustrip(best_period)) days")
 
-# using Plots
+using Plots
 # plot(ustrip.(period_grid), likelihoods; xaxis=:log)
-# plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log)
+plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log)
 
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #

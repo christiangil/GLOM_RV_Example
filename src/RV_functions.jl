@@ -282,7 +282,7 @@ function ∇nlogL_kep(data, times, covariance, ks, y; G=zeros(typeof(data[1]), n
     return G
 end
 ∇nlogL_kep(prob_def_rv::GLO_RV, covariance, ks; kwargs...) =
-    ∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], kwargs...)
+    ∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
 
 function fit_kepler(
     data::Vector{T},
@@ -685,7 +685,7 @@ fit_kepler_wright_linear_step(
     M0::Real,
     e::Real;
     kwargs...) =
-    fit_kepler_wright_linear_step(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, P, M0, e; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], kwargs...)
+    fit_kepler_wright_linear_step(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, P, M0, e; data_unit=prob_def_rv.rv_factor, kwargs...)
 
 
 mutable struct kep_buffer_wright{T1<:Real}
@@ -927,31 +927,17 @@ remove_kepler(
     prob_def_rv::GLO_RV,
     ks::KeplerSignal;
     kwargs...) =
-    remove_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], kwargs...)
+    remove_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
 
 
 fit_kepler(
     prob_def_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
-    ks::Union{kep_signal, kep_signal_wright};
+    ks::KeplerSignal;
     kwargs...) where T<:Real =
-    fit_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], kwargs...)
-fit_kepler(
-    prob_def_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
-    ks::kep_signal_wright;
-    kwargs...) where T<:Real =
-    fit_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], kwargs...)
-fit_kepler(
-    prob_def_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
-    ks::kep_signal_epicyclic) where T<:Real =
-    fit_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1])
+    fit_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
 
 kep_signal(ks::KeplerSignal) = kep_signal(ks.K, ks.P, ks.M0, ks.e, ks.ω, ks.γ)
-
-# TODO
-# add linear parts to GP fitting epicyclic and full kepler fitting
 
 kep_parms_str(ks::KeplerSignal) =
     "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "m/s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  M0: $(round(ks.M0,digits=2))  e: $(round(ks.e,digits=2))  ω: $(round(ks.ω,digits=2)) γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=2))" * "m/s"
@@ -959,7 +945,6 @@ kep_parms_str_short(ks::KeplerSignal) =
     "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "m/s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  e: $(round(ks.e,digits=2))"
 
 
-# TODO properly fix jank
 function ∇∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
@@ -968,8 +953,6 @@ function ∇∇nlogL_kep(
     data_unit::Unitful.Velocity=1u"m/s",
     include_priors::Bool=false) where T<:Real
 
-    # prob_def_rv -> data, times, data_unit
-    # prob_def_rv.y_obs, prob_def_rv.time, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.normals[1]
     y = remove_kepler(data, times, ks; data_unit=data_unit)
     α = covariance \ y
     H = zeros(n_kep_parms, n_kep_parms)
@@ -1011,7 +994,7 @@ function ∇∇nlogL_GLOM_and_planet!(
     full_H[1:n_hyper, 1:n_hyper] = GLOM.∇∇nlogL_GLOM(
         prob_def_rv.GLO, total_hyperparameters; Σ_obs=workspace.Σ_obs, y_obs=remove_kepler(prob_def_rv, ks))
 
-    full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, workspace.Σ_obs, ks; data_unit=prob_def_rv.rv_unit*prob_def_rv.GLO.normals[1], include_priors=include_kepler_priors)
+    full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, workspace.Σ_obs, ks; data_unit=prob_def_rv.rv_factor, include_priors=include_kepler_priors)
 
     # TODO allow y and α to be passed to ∇∇nlogL_kep
     y = remove_kepler(prob_def_rv, ks)
