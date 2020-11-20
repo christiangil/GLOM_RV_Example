@@ -1,24 +1,23 @@
-using UnitfulAstro
-using Unitful
+using UnitfulAstro; using Unitful
 
 """
-Derivative of transformed Keplerian parameters defined in Pal 2019
-"An analytical solution for Kepler's problem"
+kep_deriv() function created by examples/create_keplerian_derivatives.jl.
+Derivative of a Keplerian radial velocity signal using h and k instead of
+e and ω
 
 Parameters:
-K (real): velocity semi-amplitude
-P (real): period
+K (Unitful.Velocity): velocity semi-amplitude
+P (Unitful.Time): period
 M0 (real): initial mean anomaly
-h * (real): eccentricity * sin(argument of periastron)
-k * (real): eccentricity * cos(argument of periastron)
-γ (real): velocity offset
+h (real): eccentricity * sin(argument of periastron)
+k (real): eccentricity * cos(argument of periastron)
+γ (Unitful.Velocity): velocity offset
+t (Unitful.Time): time
 dorder (vector of integers): A vector of how many partial derivatives you want
-	to take with respect to each variable in the following order Basic[k, l, q, an, γ, λ)
-	Can only take up to 2 * partials * (aka sum(dorder) < 3).
+	to take with respect to each variable in the input order
 
 Returns:
-float: The derivative specfied with dorder
-
+Unitful Quantity: The derivative specified with dorder
 """
 function kep_deriv(
 	K::Unitful.Velocity,
@@ -34,263 +33,127 @@ function kep_deriv(
 
 	esq = h * h + k * k
 	e = sqrt(esq)
-	EA = ecc_anomaly(t, P, M0, e)
-	q = e * cos(EA)
-	p = e * sin(EA)
-	ω = atan(h, k)
-	# λ = mean_anomaly(t, P, M0) + ω
-	# c = cos(λ + p)
-	# s = sin(λ + p)
-	c = cos(EA + ω)
-	s = sin(EA + ω)
 	jsq = 1 - esq
 	j = sqrt(jsq)
-	qmod = 1-q
-	jmod = 1+j
+	EAval = ecc_anomaly(t, P, M0, e)
+	cosEA = cos(EAval)
+	sinEA = sin(EAval)
+	qmod = 1 - e * cosEA
 
-	if dorder==[0, 2, 0, 0, 0, 0]
-		func = (1 / (jmod * P^4 * qmod^5)) * 4 * j * π * t * (-jmod * qmod * s * (P *
-			qmod^2 - 3 * p * π * t) + c * jmod * (-p * P * qmod^2 + 3 * p^2 * π *
-			t - π * qmod * t) + k * (p * P * qmod^2 - 3 * p^2 * π * t + π * q *
-			qmod * t)) * K
-	end
+    if dorder ==[0, 0, 0, 0, 0, 0]
+        func = γ + K*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod
+    end
 
-	if dorder==[0, 1, 0, 0, 0, 1]
-		func = 0
-	end
+    if dorder ==[1, 0, 0, 0, 0, 0]
+        func = (-h*j*sinEA/e + k*jsq*cosEA/e)/qmod
+    end
 
-	if dorder==[0, 1, 1, 0, 0, 0]
-		func = (2 * j * π * (k * (-3 * p^2 + q - q^2) + c * jmod * (3 * p^2 -
-			qmod) + 3 * jmod * p * qmod * s) * t * K) / (jmod * P^2 * qmod^5)
-	end
+    if dorder ==[0, 1, 0, 0, 0, 0]
+        func = K*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod + 2*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^3)
+    end
 
-	if dorder==[0, 1, 0, 0, 1, 0]
-		func = (1 / (esq * jmod^2 * j * P^2 * qmod^5)) * 2 * π * (3 * c^2 * esq *
-			jmod^2 * jsq * p + c * jmod * (h * jmod * jsq * (3 * p^2 - qmod) -
-			esq * k * p * (6 * jsq + qmod^2 + j * (3 * jsq + qmod^2)) + 2 * esq *
-			jmod * jsq * (2 - 3 * q + q^2) * s) - h * jmod * jsq * (3 * k * p^2 -
-			k * q * qmod - 3 * jmod * p * qmod * s) + esq * ((-1 + h^2 - j) * j *
-			p * qmod^2 + jmod * k * qmod^2 * (k * p - jmod * qmod * s) + jmod *
-			jsq * (3 * k^2 * p - (2 + j) * k * qmod * s - 2 * jmod * p * qmod *
-			s^2))) * t * K
-	end
+    if dorder ==[0, 0, 1, 0, 0, 0]
+        func = K*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))/qmod + K*e*sinEA*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^3
+    end
 
-	if dorder==[0, 1, 0, 1, 0, 0]
-		func = -(1 / (esq * jmod^2 * j * P^2 * qmod^5)) * 2 * π * (c^2 * esq *
-			jmod^2 * jsq * (2 - 3 * q + q^2) - jmod * jsq * k * (3 * k * p^2 -
-			k * q * qmod - 3 * jmod * p * qmod * s) + c * jmod * (esq * h * jmod *
-			p * qmod^2 + jsq * k * (jmod * (3 * p^2 - qmod) - esq * qmod) + esq *
-			jmod * jsq * p * (3 * h + (-5 + 2 * q) * s)) - esq * (jmod * jsq * s *
-			(-3 * k * p + jmod * (2 - 3 * q + q^2) * s) + h * (k * p * (3 * jsq +
-			qmod^2 - j * qmod^2 + j * (3 * jsq + qmod^2)) - jmod^2 * qmod *
-			(jsq + qmod^2) * s))) * t * K
-	end
+    if dorder ==[0, 0, 0, 1, 0, 0]
+        func = K*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))/qmod - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2
+    end
 
-	if dorder==[1, 1, 0, 0, 0, 0]
-		func = (2 * j * π * (c * jmod * p - k * p + jmod * qmod * s) * t) /
-			(jmod * P^2 * qmod^3)
-	end
+    if dorder ==[0, 0, 0, 0, 1, 0]
+        func = K*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))/qmod - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^2
+    end
 
-	if dorder==[0, 1, 0, 0, 0, 0]
-		func = (2 * j * π * (c * jmod * p - k * p - jmod * -qmod * s) *
-			t * K) / (jmod * P^2 * qmod^3)
-	end
+    if dorder ==[0, 0, 0, 0, 0, 1]
+        func = 1
+    end
 
-	if dorder==[0, 0, 0, 0, 0, 2]
-		func = 0
-	end
+    if dorder ==[2, 0, 0, 0, 0, 0]
+        func = 0
+    end
 
-	if dorder==[0, 0, 1, 0, 0, 1]
-		func = 0
-	end
+    if dorder ==[1, 1, 0, 0, 0, 0]
+        func = (2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod + 2*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^3)
+    end
 
-	if dorder==[0, 0, 0, 0, 1, 1]
-		func = 0
-	end
+    if dorder ==[0, 2, 0, 0, 0, 0]
+        func = K*(4*k*t^2*jsq*sinEA^2*π^2/(P^4*qmod^3) + 4*h*j*t^2*sinEA*π^2/(P^4*e*qmod^2) - 4*k*t^2*jsq*cosEA*π^2/(P^4*e*qmod^2) + 4*h*j*t^2*sinEA*cosEA*π^2/(P^4*qmod^3) - 4*h*j*t*cosEA*π/(P^3*e*qmod) - 4*k*t*jsq*sinEA*π/(P^3*e*qmod))/qmod - 4*K*e*t^2*cosEA*π^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^4*qmod^4) + 12*K*t^2*esq*sinEA^2*π^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^4*qmod^5) - 4*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^3*qmod^3) + 4*K*e*t*sinEA*π*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/(P^2*qmod^3)
+    end
 
-	if dorder==[0, 0, 0, 1, 0, 1]
-		func = 0
-	end
+    if dorder ==[1, 0, 1, 0, 0, 0]
+        func = (h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))/qmod + e*sinEA*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^3
+    end
 
-	if dorder==[1, 0, 0, 0, 0, 1]
-		func = 0
-	end
+    if dorder ==[0, 1, 1, 0, 0, 0]
+        func = K*(2*k*t*jsq*sinEA^2*π/(P^2*qmod^3) + 2*h*j*t*sinEA*π/(P^2*e*qmod^2) - 2*k*t*jsq*cosEA*π/(P^2*e*qmod^2) + 2*h*j*t*sinEA*cosEA*π/(P^2*qmod^3))/qmod + K*e*sinEA*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod^3 - 2*K*e*t*cosEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^4) + 2*K*e*t*sinEA*π*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))/(P^2*qmod^3) + 6*K*t*esq*sinEA^2*π*(-h*j*sinEA/e + k*jsq*cosEA/e)/(P^2*qmod^5)
+    end
 
-	if dorder==[0, 0, 0, 0, 0, 1]
-		func = 1
-	end
+    if dorder ==[0, 0, 2, 0, 0, 0]
+        func = K*(k*jsq*sinEA^2/qmod^3 + h*j*sinEA/(e*qmod^2) - k*jsq*cosEA/(e*qmod^2) + h*j*sinEA*cosEA/qmod^3)/qmod - K*e*cosEA*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^4 + 2*K*e*sinEA*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))/qmod^3 + 3*K*esq*sinEA^2*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^5
+    end
 
-	if dorder==[0, 0, 2, 0, 0, 0]
-		func = (j * (k * (-3 * p^2 + q - q^2) + c * jmod * (3 * p^2 - qmod) + 3 *
-			jmod * p * qmod * s) * K) / (jmod * qmod^5)
-	end
+    if dorder ==[1, 0, 0, 1, 0, 0]
+        func = (-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))/qmod - (-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2
+    end
 
-	if dorder==[0, 0, 1, 0, 1, 0]
-		func = (1 / (esq * jmod^2 * j * qmod^5)) * (3 * c^2 * esq * jmod^2 * jsq *
-			p + c * jmod * (h * jmod * jsq * (3 * p^2 - qmod) - esq * k * p * (6 *
-			jsq + qmod^2 + j * (3 * jsq + qmod^2)) + 2 * esq * jmod * jsq *
-			(2 - 3 * q + q^2) * s) - h * jmod * jsq * (3 * k * p^2 - k * q * qmod -
-			3 * jmod * p * qmod * s) + esq * ((-1 + h^2 - j) * j * p * qmod^2 +
-			jmod * k * qmod^2 * (k * p - jmod * qmod * s) + jmod * jsq * (3 * k^2 *
-			p - (2 + j) * k * qmod * s - 2 * jmod * p * qmod * s^2))) * K
-	end
+    if dorder ==[0, 1, 0, 1, 0, 0]
+        func = K*(2*j*t*cosEA*π/(P^2*e*qmod) - 2*h^2*j*t*cosEA*π/(P^2*e^3*qmod) + 2*h^2*j*t*cosEA^2*π/(P^2*e^2*qmod^2) - 2*h^2*j*t*sinEA^2*π/(P^2*e^2*qmod^2) - 4*h*k*t*sinEA*π/(P^2*e*qmod) - 2*h^2*t*cosEA*π/(P^2*e*j*qmod) - 2*h*k*t*jsq*sinEA*π/(P^2*e^3*qmod) - 2*h*k*t*jsq*sinEA^3*π/(P^2*e*qmod^3) - 2*h^2*j*t*sinEA^2*cosEA*π/(P^2*e*qmod^3) + 4*h*k*t*jsq*sinEA*cosEA*π/(P^2*e^2*qmod^2))/qmod - K*(-h*cosEA/e + h*sinEA^2/qmod)*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod^2 - K*(-2*h*t*sinEA*π/(P^2*e*qmod) + 2*e*h*t*sinEA^3*π/(P^2*qmod^3) - 4*h*t*sinEA*cosEA*π/(P^2*qmod^2))*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^2 + 2*K*e*t*sinEA*π*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))/(P^2*qmod^3) - 4*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)/(P^2*qmod^4)
+    end
 
-	if dorder==[0, 0, 1, 1, 0, 0]
-		func = -(1 / (esq * jmod^2 * j * qmod^5)) * (c^2 * esq * jmod^2 * jsq *
-			(2 - 3 * q + q^2) - jmod * jsq * k * (3 * k * p^2 - k * q * qmod -
-			3 * jmod * p * qmod * s) + c * jmod * (esq * h * jmod * p * qmod^2 +
-			jsq * k * (jmod * (3 * p^2 - qmod) - esq * qmod) + esq * jmod * jsq *
-			p * (3 * h + (-5 + 2 * q) * s)) - esq * (jmod * jsq * s * (-3 * k * p +
-			jmod * (2 - 3 * q + q^2) * s) + h * (k * p * (3 * jsq + qmod^2 - j *
-			qmod^2 + j * (3 * jsq + qmod^2)) - jmod^2 * qmod * (jsq + qmod^2) * s))) * K
-	end
+    if dorder ==[0, 0, 1, 1, 0, 0]
+        func = K*(j*cosEA/(e*qmod) - h^2*j*cosEA/(e^3*qmod) + h^2*j*cosEA^2/(e^2*qmod^2) - h^2*j*sinEA^2/(e^2*qmod^2) - 2*h*k*sinEA/(e*qmod) - h^2*cosEA/(e*j*qmod) - h*k*jsq*sinEA/(e^3*qmod) - h*k*jsq*sinEA^3/(e*qmod^3) - h^2*j*sinEA^2*cosEA/(e*qmod^3) + 2*h*k*jsq*sinEA*cosEA/(e^2*qmod^2))/qmod - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*sinEA/(e*qmod) + e*h*sinEA^3/qmod^3 - 2*h*sinEA*cosEA/qmod^2)/qmod^2 - K*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2 + K*e*sinEA*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))/qmod^3 - 2*K*e*sinEA*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^4
+    end
 
-	if dorder==[1, 0, 1, 0, 0, 0]
-		func = -((j * (-c * jmod * p + k * p - jmod * qmod * s)) / (jmod * qmod^3))
-	end
+    if dorder ==[0, 0, 0, 2, 0, 0]
+        func = K*(-2*k*cosEA/e - 3*h^3*j*sinEA/e^5 + 3*h*j*sinEA/e^3 + 4*h^2*k*cosEA/e^3 - 2*h^3*sinEA/(e^3*j) - k*jsq*cosEA/e^3 + 3*h*sinEA/(e*j) + h^3*sinEA/(e*j^3) + 3*h^2*k*jsq*cosEA/e^5 + h^3*j*sinEA^3/(e^3*qmod^2) + 4*h^2*k*sinEA^2/(e^2*qmod) - k*jsq*sinEA^2/(e^2*qmod) + 3*h^2*k*jsq*sinEA^2/(e^4*qmod) + 3*h^3*j*sinEA*cosEA/(e^4*qmod) - h^3*j*sinEA*cosEA^2/(e^3*qmod^2) - 3*h*j*sinEA*cosEA/(e^2*qmod) + 2*h^3*sinEA*cosEA/(e^2*j*qmod) - 2*h^2*k*jsq*sinEA^2*cosEA/(e^3*qmod^2) + h*k*jsq*sinEA^2*(-h*cosEA/e + h*sinEA^2/qmod)/(e^2*qmod^2) + h^2*j*sinEA*cosEA*(-h*cosEA/e + h*sinEA^2/qmod)/(e^2*qmod^2))/qmod + 2*K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-h*cosEA/e + h*sinEA^2/qmod)^2/qmod^3 - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-cosEA/e + sinEA^2/qmod + h^2*cosEA/e^3 + h^2*sinEA^2/(e^2*qmod) - h*sinEA^2*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2 + 2*h^2*sinEA^2*cosEA/(e*qmod^2))/qmod^2 - 2*K*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2
+    end
 
-	if dorder==[0, 0, 1, 0, 0, 0]
-		func = -(j * (-c * jmod * p + k * p + jmod * -qmod * s) * K) / (jmod *
-			qmod^3)
-	end
+    if dorder ==[1, 0, 0, 0, 1, 0]
+        func = (jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))/qmod - (-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^2
+    end
 
-	# TODO find out why this is slightly incorrect
-	if dorder==[0, 0, 0, 0, 2, 0]
-		func = -(((-jmod^2 * jsq^3 * (c * esq - esq * k + h * p)^2 * (c + c * j - k * q) -
-	   		esq * jmod^2 * jsq^2 * k * (-c * esq + esq * k - h * p) * (c + c * j -
-		  	k * q) * qmod^2 + esq^2 * jmod^2 * jsq^2 * (c + c * j - k * q) * qmod^4 -
-	   		3 * esq * j * jmod * jsq * k * qmod^3 * (j * jmod * k * (c * esq - esq * k + h * p) -
-		  	esq * (-1 + h^2 - j) * q * qmod + j * jmod^2 * s * (-h + esq * s)) -
-	   		jmod^2 * jsq^3 * (c + c * j - k * q) * qmod * (h * (h * q - 2 * k * p * qmod) +
-		  	2 * esq * h * s + esq^2 * (-qmod - s^2)) -
-	   		2 * jmod * jsq^2 * (c * esq - esq * k +
-		  	h * p) * (jmod * jsq * (c * esq - esq * k + h * p) * (c + c * j - k * q) -
-		  	esq * jmod * k * (c + c * j - k * q) * qmod^2 -
-		  	j * qmod * (j * jmod * k * (c * esq - esq * k + h * p) -
-			esq * (-1 + h^2 - j) * q * qmod + j * jmod^2 * s * (-h + esq * s))) -
-	   		esq * jmod * jsq * k * qmod^2 * (jmod * jsq * (c * esq - esq * k + h * p) * (c +
-			c * j - k * q) - esq * jmod * k * (c + c * j - k * q) * qmod^2 -
-		  	j * qmod * (j * jmod * k * (c * esq - esq * k + h * p) -
-			esq * (-1 + h^2 - j) * q * qmod + j * jmod^2 * s * (-h + esq * s))) +
-	   		j * qmod * (jmod^2 * j^5 * k * (c * esq - esq * k + h * p)^2 -
-		  	esq * jmod * jsq^2 * k^2 * (-c * esq + esq * k - h * p) * qmod^2 +
-		  	esq * jmod * (-h^2 + jmod) * jsq^2 * (c * esq - esq * k + h * p) * qmod^2 +
-		  	esq * jmod^2 * j^5 * (c * esq - esq * k + h * p) * qmod^2 +
-		  	esq^2 * jmod * (-h^2 + jmod) * jsq * k * q * qmod^3 -
-		  	2 * esq^2 * (-1 + h^2 - j) * j^3 * k * q * qmod^3 -
-		  	esq^2 * jmod * j^3 * k * q * qmod^3 +
-		  	c * jmod^3 * j^5 * qmod * (h - esq * s)^2 +
-		  	jmod^3 * j^5 * (c * esq - esq * k + h * p) * s * (-h + esq * s) +
-		  	jmod^3 * j^5 * qmod * s * (2 * h * k * qmod + c * esq * (-h + esq * s)) +
-		  	jmod^2 * j^5 * k * qmod * (h * (h * q - 2 * k * p * qmod) + 2 * esq * h * s +
-			esq^2 * (-qmod - s^2)))) * K) / (jmod^3 * j^5 * (esq - esq * q)^2 * qmod^3))
-	end
+    if dorder ==[0, 1, 0, 0, 1, 0]
+        func = K*(-4*k^2*t*sinEA*π/(P^2*e*qmod) + 2*t*jsq*sinEA*π/(P^2*e*qmod) - 2*k^2*t*jsq*sinEA*π/(P^2*e^3*qmod) - 2*k^2*t*jsq*sinEA^3*π/(P^2*e*qmod^3) - 2*h*j*k*t*cosEA*π/(P^2*e^3*qmod) + 2*h*j*k*t*cosEA^2*π/(P^2*e^2*qmod^2) - 2*h*j*k*t*sinEA^2*π/(P^2*e^2*qmod^2) + 4*k^2*t*jsq*sinEA*cosEA*π/(P^2*e^2*qmod^2) - 2*h*k*t*cosEA*π/(P^2*e*j*qmod) - 2*h*j*k*t*sinEA^2*cosEA*π/(P^2*e*qmod^3))/qmod - K*(-k*cosEA/e + k*sinEA^2/qmod)*(2*h*j*t*cosEA*π/(P^2*e*qmod) + 2*k*t*jsq*sinEA*π/(P^2*e*qmod))/qmod^2 - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-2*k*t*sinEA*π/(P^2*e*qmod) + 2*e*k*t*sinEA^3*π/(P^2*qmod^3) - 4*k*t*sinEA*cosEA*π/(P^2*qmod^2))/qmod^2 + 2*K*e*t*sinEA*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))*π/(P^2*qmod^3) - 4*K*e*t*sinEA*π*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)/(P^2*qmod^4)
+    end
 
-	# TODO find out why this is slightly incorrect
-	if dorder==[0, 0, 0, 1, 1, 0]
-		func = -(((2 * jmod * jsq^2 * (c * esq - esq * k + h * p) * (esq * h *
-		jmod * (c + c * j - k * q) * qmod^2 + jmod * jsq * (c + c * j - k * q) *
-		(k * p + esq * (h - s)) + j * qmod * (esq * h * k * q * qmod - j *
-		jmod * k * (k * p + esq * (h - s)) - j * jmod^2 * (c * esq - k) * s)) +
-		esq * jmod * jsq * k * qmod^2 * (esq * h * jmod * (c + c * j - k * q) *
-		qmod^2 + jmod * jsq * (c + c * j - k * q) * (k * p + esq * (h - s)) +
-		j * qmod * (esq * h * k * q * qmod - j * jmod * k * (k * p + esq * (h -
-		s)) - j * jmod^2 * (c * esq - k) * s)) - j * (esq * h * j * jmod^2 *
-		jsq * (c * esq - esq * k + h * p) * (c + c * j - k * q) * qmod^2 -
-		jmod^2 * j^5 * (c * esq - esq * k + h * p) * (c + c * j - k * q) * (k *
-		p + esq * (h - s)) + 2 * esq * j * jmod^2 * jsq * k * (c + c * j - k *
-		q) * qmod^2 * (k * p + esq * (h - s)) + jmod * jsq^2 * (c * esq - esq *
-		k + h * p) * qmod * (esq * h * k * q * qmod - j * jmod * k * (k * p +
-		esq * (h - s)) - j * jmod^2 * (c * esq - k) * s) + 2 * esq * jmod *
-		jsq * k * qmod^3 * (esq * h * k * q * qmod - j * jmod * k * (k * p +
-		esq * (h - s)) - j * jmod^2 * (c * esq - k) * s) + esq * h * jmod *
-		jsq * qmod^3 * (j * jmod * k * (c * esq - esq * k + h * p) - esq * (-1 +
-		h^2 - j) * q * qmod + j * jmod^2 * s * (-h + esq * s)) + jmod * jsq^2 *
-		qmod * (k * p + esq * (h - s)) * (j * jmod * k * (c * esq - esq * k +
-		h * p) - esq * (-1 + h^2 - j) * q * qmod + j * jmod^2 * s * (-h + esq *
-		s)) - jmod^2 * j^5 * (c + c * j - k * q) * qmod * ((h^2 - k^2) * p *
-		qmod + c * esq * (h - esq * s) + k * (h * q + esq * s)) - qmod * (-esq *
-		h * jmod * jsq^2 * k * (-c * esq + esq * k - h * p) * qmod^2 + esq^2 *
-		h * jmod * jsq^2 * q * qmod^3 + esq^2 * h * jmod * jsq * k^2 * q *
-		qmod^3 + 2 * esq^2 * h * j^3 * k^2 * q * qmod^3 + jmod^2 * j^5 * k *
-		(-c * esq + esq * k - h * p) * (k * p + esq * (h - s)) - esq * jmod^2 *
-		j^5 * qmod^2 * (k * p + esq * (h - s)) - esq * jmod * jsq^2 * k^2 *
-		qmod^2 * (k * p + esq * (h - s)) - jmod^3 * j^5 * (c * esq - k) * (c *
-		esq - esq * k + h * p) * s - c * jmod^3 * j^5 * (c * esq - k) * qmod *
-		(-h + esq * s) + jmod^3 * j^5 * qmod * s * ((h^2 - k^2) * qmod + esq *
-		s * (-h + esq * s)) - jmod^2 * j^5 * k * qmod * ((h^2 - k^2) * p *
-		qmod + c * esq * (h - esq * s) + k * (h * q + esq * s))))) * K) /
-		(jmod^3 * j^5 * (esq - esq * q)^2 * qmod^3))
-	end
+    if dorder ==[0, 0, 1, 0, 1, 0]
+        func = K*(jsq*sinEA/(e*qmod) - 2*k^2*sinEA/(e*qmod) - k^2*jsq*sinEA/(e^3*qmod) - k^2*jsq*sinEA^3/(e*qmod^3) - h*j*k*cosEA/(e^3*qmod) + h*j*k*cosEA^2/(e^2*qmod^2) - h*j*k*sinEA^2/(e^2*qmod^2) + 2*k^2*jsq*sinEA*cosEA/(e^2*qmod^2) - h*k*cosEA/(e*j*qmod) - h*j*k*sinEA^2*cosEA/(e*qmod^3))/qmod - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*sinEA/(e*qmod) + e*k*sinEA^3/qmod^3 - 2*k*sinEA*cosEA/qmod^2)/qmod^2 - K*(h*j*cosEA/(e*qmod) + k*jsq*sinEA/(e*qmod))*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^2 + K*e*sinEA*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))/qmod^3 - 2*K*e*sinEA*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^4
+    end
 
-	if dorder==[1, 0, 0, 0, 1, 0]
-		func = ((jsq * (c - k + (h * p) / esq) * (c - (k * q) / jmod)) / qmod -
-			(k * (c + c * j - k * q) * qmod) / jmod + jsq * qmod * (((-1 + h^2 -
-			j) * q) / (jmod^2 * j) - (k * (c * esq - esq * k + h * p)) / (esq *
-			jmod * qmod) - (s * (-h + esq * s)) / (esq * qmod))) / (j * qmod^2)
-	end
+    if dorder ==[0, 0, 0, 1, 1, 0]
+        func = K*(-2*h*cosEA/e - h*jsq*cosEA/e^3 + 4*h*k^2*cosEA/e^3 + j*k*sinEA/e^3 + k*sinEA/(e*j) + 3*h*k^2*jsq*cosEA/e^5 - 3*h^2*j*k*sinEA/e^5 - 2*h^2*k*sinEA/(e^3*j) - h*jsq*sinEA^2/(e^2*qmod) + 4*h*k^2*sinEA^2/(e^2*qmod) + h^2*k*sinEA/(e*j^3) + 3*h*k^2*jsq*sinEA^2/(e^4*qmod) + h^2*j*k*sinEA^3/(e^3*qmod^2) - j*k*sinEA*cosEA/(e^2*qmod) + k^2*jsq*sinEA^2*(-h*cosEA/e + h*sinEA^2/qmod)/(e^2*qmod^2) + 3*h^2*j*k*sinEA*cosEA/(e^4*qmod) - 2*h*k^2*jsq*sinEA^2*cosEA/(e^3*qmod^2) - h^2*j*k*sinEA*cosEA^2/(e^3*qmod^2) + 2*h^2*k*sinEA*cosEA/(e^2*j*qmod) + h*j*k*sinEA*cosEA*(-h*cosEA/e + h*sinEA^2/qmod)/(e^2*qmod^2))/qmod - K*(h*k*cosEA/e^3 - k*sinEA^2*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2 + h*k*sinEA^2/(e^2*qmod) + 2*h*k*sinEA^2*cosEA/(e*qmod^2))*(-h*j*sinEA/e + k*jsq*cosEA/e)/qmod^2 - K*(-j*sinEA/e + h^2*j*sinEA/e^3 - 2*h*k*cosEA/e + h^2*sinEA/(e*j) - h*k*jsq*cosEA/e^3 - h*k*jsq*sinEA^2/(e^2*qmod) - h^2*j*sinEA*cosEA/(e^2*qmod))*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^2 - K*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^2 + 2*K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)*(-h*cosEA/e + h*sinEA^2/qmod)/qmod^3
+    end
 
-	if dorder==[0, 0, 0, 0, 1, 0]
-		func = (((k * -qmod * (c + c * j - k * q)) / jmod + (jsq * (c - k +
-			(h * p) / esq) * (c - (k * q) / jmod)) / qmod + jsq * qmod * ((k *
-			(c - k + (h * p) / esq)) / (jmod * -qmod) + ((-1 + h^2 - j) * q)  /
-			(jmod^2 * j) - (s * (-(h / esq) + s)) / qmod)) * K) / (j * qmod^2)
-	end
+    if dorder ==[0, 0, 0, 0, 2, 0]
+        func = K*(4*k^3*cosEA/e^3 - 6*k*cosEA/e + 3*k^3*jsq*cosEA/e^5 + h*j*sinEA/e^3 - 3*k*jsq*cosEA/e^3 + 4*k^3*sinEA^2/(e^2*qmod) + h*sinEA/(e*j) - 3*h*j*k^2*sinEA/e^5 + 3*k^3*jsq*sinEA^2/(e^4*qmod) - 2*h*k^2*sinEA/(e^3*j) - 3*k*jsq*sinEA^2/(e^2*qmod) + h*k^2*sinEA/(e*j^3) + h*j*k^2*sinEA^3/(e^3*qmod^2) - 2*k^3*jsq*sinEA^2*cosEA/(e^3*qmod^2) - h*j*sinEA*cosEA/(e^2*qmod) + k^2*jsq*sinEA^2*(-k*cosEA/e + k*sinEA^2/qmod)/(e^2*qmod^2) + 3*h*j*k^2*sinEA*cosEA/(e^4*qmod) - h*j*k^2*sinEA*cosEA^2/(e^3*qmod^2) + 2*h*k^2*sinEA*cosEA/(e^2*j*qmod) + h*j*k*sinEA*cosEA*(-k*cosEA/e + k*sinEA^2/qmod)/(e^2*qmod^2))/qmod + 2*K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-k*cosEA/e + k*sinEA^2/qmod)^2/qmod^3 - K*(-h*j*sinEA/e + k*jsq*cosEA/e)*(-cosEA/e + sinEA^2/qmod + k^2*cosEA/e^3 + k^2*sinEA^2/(e^2*qmod) - k*sinEA^2*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^2 + 2*k^2*sinEA^2*cosEA/(e*qmod^2))/qmod^2 - 2*K*(jsq*cosEA/e - 2*k^2*cosEA/e - k^2*jsq*cosEA/e^3 + h*j*k*sinEA/e^3 - k^2*jsq*sinEA^2/(e^2*qmod) + h*k*sinEA/(e*j) - h*j*k*sinEA*cosEA/(e^2*qmod))*(-k*cosEA/e + k*sinEA^2/qmod)/qmod^2
+    end
 
-	if dorder==[0, 0, 0, 2, 0, 0]
-		func = -(((esq^2 * jmod^2 * jsq^2 * (c + c * j - k * q) * qmod^4 -
-			jmod^2 * jsq^3 * (c + c * j - k * q) * qmod * (2 * c * esq * k + esq^2 *
-			(-c^2 - qmod) - k * (k * q - 2 * h * p * qmod)) - esq * h * jmod^2 * jsq^2 *
-			(c + c * j - k * q) * qmod^2 * (k * p + esq * (h - s)) - jmod^2 * jsq^3 *
-			(c + c * j - k * q) * (k * p + esq * (h - s))^2 - 3 * esq * h * j *
-			jmod * jsq * qmod^3 * (esq * h * k * q * qmod - j * jmod * k * (k * p +
-			esq * (h - s)) - j * jmod^2 * (c * esq - k) * s) + esq * h * jmod *
-			jsq * qmod^2 * (esq * h * jmod * (c + c * j - k * q) * qmod^2 + jmod *
-			jsq * (c + c * j - k * q) * (k * p + esq * (h - s)) + j * qmod * (esq *
-			h * k * q * qmod - j * jmod * k * (k * p + esq * (h - s)) - j * jmod^2 *
-			(c * esq - k) * s)) - 2 * jmod * jsq^2 * (k * p + esq * (h - s)) *
-			(esq * h * jmod * (c + c * j - k * q) * qmod^2 + jmod * jsq * (c + c *
-			j - k * q) * (k * p + esq * (h - s)) + j * qmod * (esq * h * k * q *
-			qmod - j * jmod * k * (k * p + esq * (h - s)) - j * jmod^2 * (c * esq -
-			k) * s)) + j * qmod * (c * jmod^3 * j^5 * (-c * esq + k)^2 * qmod +
-			esq^2 * h^2 * jmod * jsq * k * q * qmod^3 + 2 * esq^2 * h^2 * j^3 * k *
-			q * qmod^3 + esq^2 * jmod * jsq^2 * k * q * qmod^3 + jmod^2 * j^5 * k *
-			qmod * (2 * c * esq * k + esq^2 * (-c^2 - qmod) - k * (k * q - 2 * h *
-			p * qmod)) - 2 * esq * h * jmod * jsq^2 * k * qmod^2 * (k * p + esq *
-			(h - s)) + jmod^2 * j^5 * k * (k * p + esq * (h - s))^2 - jmod^3 * j^5 *
-			qmod * s * (2 * h * k * qmod + esq * (c * esq - k) * s) - jmod^3 * j^5 *
-			(c * esq - k) * s * (-k * p + esq * (-h + s)))) * K) / (jmod^3 * j^5 *
-			(esq - esq * q)^2 * qmod^3))
-	end
+    if dorder ==[1, 0, 0, 0, 0, 1]
+        func = 0
+    end
 
-	if dorder==[1, 0, 0, 1, 0, 0]
-		func = (-((h * (c + c * j - k * q) * qmod) / jmod) + (jsq * (c - (k * q)
-			/ jmod) * (-h - (k * p) / esq + s)) / qmod + (-jmod * jsq * k *
-			(-k * p + s + j * s) + esq * (h * jmod * jsq * k - h * j * k * q * qmod +
-			jmod * jsq * (c + c * j - k) * s)) / (esq * jmod^2)) / (j * qmod^2)
-	end
+    if dorder ==[0, 1, 0, 0, 0, 1]
+        func = 0
+    end
 
-	if dorder==[0, 0, 0, 1, 0, 0]
-		func = (((h * -qmod * (c + c * j - k * q)) / jmod + (jsq * (c -
-			(k * q) / jmod) * (-h - (k * p) / esq + s)) / qmod + jsq * qmod *
-			(-((h * k * q) / (jmod^2 * j)) + ((c - k / esq) * s) / qmod + (k *
-			(-h - (k * p) / esq + s)) / (jmod * -qmod))) * K) / (j * qmod^2)
-	end
+    if dorder ==[0, 0, 1, 0, 0, 1]
+        func = 0
+    end
 
-	if dorder==[2, 0, 0, 0, 0, 0]
-		func = 0
-	end
+    if dorder ==[0, 0, 0, 1, 0, 1]
+        func = 0
+    end
 
-	if dorder==[1, 0, 0, 0, 0, 0]
-		func = (j * (c - (k * q) / jmod)) / qmod
-	end
+    if dorder ==[0, 0, 0, 0, 1, 1]
+        func = 0
+    end
 
-	if dorder==[0, 0, 0, 0, 0, 0]
-		func = (j * (c - (k * q) / jmod) * K) / qmod + γ
-	end
+    if dorder ==[0, 0, 0, 0, 0, 2]
+        func = 0
+    end
 
-	return float(func)
+    return float(func)
 
 end
 kep_deriv(ks::kep_signal, t::Unitful.Time, dorder::Vector{<:Integer}) =
-	kep_deriv(ks.K, ks.P, ks.M0, ks.h, ks.k, ks.γ, t, dorder)
+    kep_deriv(ks.K, ks.P, ks.M0, ks.h, ks.k, ks.γ, t, dorder)
