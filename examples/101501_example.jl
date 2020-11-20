@@ -250,7 +250,11 @@ end
     #initialize with fast epicyclic fit
     ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_epicyclic(P=P))
     if !fast
-        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(maximum([0.1u"m/s", ks.K]), ks.P, ks.M0, minimum([ks.e, 0.3]), ks.ω, ks.γ); hold_P=true, avoid_saddle=false, print_stuff=false, kwargs...)
+        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(0u"m/s", P, ks.M0, minimum([ks.e, 0.3]), 0, 0u"m/s"); hold_P=true, avoid_saddle=false, print_stuff=false, kwargs...)
+        return ks
+    end
+    if ks == nothing
+        ks = GLOM_RV.fit_kepler(problem_definition_rv, Σ_obs, GLOM_RV.kep_signal_wright(0u"m/s", P, 2 * π * rand(), 0.1, 0, 0u"m/s"); hold_P=true, avoid_saddle=false, print_stuff=false, kwargs...)
         return ks
     end
     return ks
@@ -290,9 +294,10 @@ best_period = best_periods[1]
 
 println("found period:    $(ustrip(best_period)) days")
 
-using Plots
-# plot(ustrip.(period_grid), likelihoods; xaxis=:log)
-plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log)
+# using Plots
+# plot(ustrip.(period_grid), likelihoods; xaxis=:log, leg=false)
+# plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
+
 
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
