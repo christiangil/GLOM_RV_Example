@@ -2,9 +2,6 @@ using Pkg
 Pkg.activate("examples")
 Pkg.instantiate()
 
-# for std()
-using Statistics
-
 # for det()
 using LinearAlgebra
 

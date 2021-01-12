@@ -2,9 +2,6 @@ using Pkg
 Pkg.activate("examples")
 Pkg.instantiate()
 
-# for std()
-using Statistics
-
 # for det()
 using LinearAlgebra
 
@@ -63,11 +60,9 @@ GLOM_RV.remove_mean!(obs_xs)
 obs_rvs = collect(data[!, "b1"])
 
 # inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
-inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, 4.110936513051912, e_or_h=0.1)
+inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
 obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
 obs_rvs_err = data[!, "b1"] ./ data[!, "t1"]
-
-inject_ks
 
 # CHANGE: activity indicators and thier errors go here
 # you can actually have as many as you want, but obviously it will take longer
