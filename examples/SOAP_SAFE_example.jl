@@ -178,8 +178,8 @@ GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
 activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
 clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 
-println("\nstarting rms:    ", std(obs_rvs))
-println("no feat new rms: ", std(GLOM_rvs_at_obs_xs - obs_rvs))
+println("\nstarting rms:           ", std(obs_rvs))
+println("PPCA SAFE feat new rms: ", std(GLOM_rvs_at_obs_xs - obs_rvs))
 
 using Plots
 plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
