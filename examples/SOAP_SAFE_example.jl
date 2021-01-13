@@ -27,6 +27,11 @@ using HDF5
 
 ## Problem setup
 
+# CHANGE: whether you want to look for a planet that you inject
+inject_planet = false
+# inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
+inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
+
 # CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
 # kernel
 kernel_choice = 3
@@ -58,19 +63,51 @@ GLOM_RV.remove_mean!(obs_xs)
 
 # CHANGE: rvs and their errors go here
 obs_rvs = collect(data[!, "b1"])
-
-# inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
-inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
-obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
+if inject_planet
+    obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
+end
 obs_rvs_err = data[!, "b1"] ./ data[!, "t1"]
+
+## PCA for indicators
+using MultivariateStats
+using Statistics
+find_data_col_ind(col_name) = findfirst(x -> x==col_name, names(data))
+
+Xte = Matrix(data[!, find_data_col_ind("b0"):find_data_col_ind("b5")])'
+
+#PPCA version
+M = fit(PPCA, Xte; maxoutdim=2)
+# modifed from transform() at from https://github.com/JuliaStats/MultivariateStats.jl/blob/master/src/ppca.jl
+function transforming_mat(m::PPCA{T}) where {T<:Real}
+    W  = m.W
+    n = outdim(m)
+    M = W'W .+ m.σ² * Matrix{T}(I, n, n)
+    return inv(M)*m.W'
+end
+ZT = transforming_mat(M)'
+z = MultivariateStats.transform(M, Xte)  # = Z * (Xte .- M.mean)
+
+# # PCA version
+# M = fit(PCA, Xte; maxoutdim=2)
+# ZT = M.proj
+# z = MultivariateStats.transform(M, Xte)  # = Z * (Xte .- M.mean)
+
+σ_β = (Matrix(data[!, find_data_col_ind("b0"):find_data_col_ind("b5")]) ./ Matrix(data[!, find_data_col_ind("t0"):find_data_col_ind("t5")]))'
+σ_z = zeros(size(z))
+for i in 1:size(z, 2)
+    hmm = ZT .* σ_β[:, i]
+    σ_z[:, i] = sqrt.(diag(hmm' * hmm))
+end
+
+## adding indicators
 
 # CHANGE: activity indicators and thier errors go here
 # you can actually have as many as you want, but obviously it will take longer
 # to fit
-obs_indicator1 = data[!, "b2"]
-obs_indicator1_err = data[!, "b2"] ./  data[!, "t2"]
-obs_indicator2 = data[!, "b3"]
-obs_indicator2_err = data[!, "b3"] ./  data[!, "t3"]
+obs_indicator1 = z[1, :]
+obs_indicator1_err = σ_z[1, :]
+obs_indicator2 = z[2, :]
+obs_indicator2_err = σ_z[2, :]
 
 # removing means as the GP model assumes zero mean
 GLOM_RV.remove_mean!(obs_rvs)
@@ -102,7 +139,8 @@ initial_total_hyperparameters = collect(Iterators.flatten(problem_definition.a0)
 initial_hypers = [[star_rot_rate], [star_rot_rate], [star_rot_rate], [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate, 2 * star_rot_rate, 1]]
 append!(initial_total_hyperparameters, initial_hypers[kernel_choice])
 
-initial_total_hyperparameters[:] = [0.0023761507506676236, -0.3054296895488315, -0.11593928780248865, 0.8755168285072893, 11.8214828482746, -2.0796862114288186, 27.485528857812508, -30.289234793914247, -5.34066485785403, 16.17994314368127]
+# For RV, b2, and b3
+# initial_total_hyperparameters[:] = [0.0023761507506676236, -0.3054296895488315, -0.11593928780248865, 0.8755168285072893, 11.8214828482746, -2.0796862114288186, 27.485528857812508, -30.289234793914247, -5.34066485785403, 16.17994314368127]
 ## Fitting GLOM Model
 
 # CHANGE: Setting kernel hyperparameter priors and kick function
@@ -132,14 +170,16 @@ workspace = GLOM.nlogL_matrix_workspace(problem_definition, fit1_total_hyperpara
 ## Plotting initial results
 
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
-post, post_err, post_obs, post_obs_err = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
+post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
 GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
 GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
-GLOM_rvs_err_at_obs_xs, GLOM_ind1_err_at_obs_xs, GLOM_ind2_err_at_obs_xs = post_obs_err
 
 activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
 clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
+
+println("\nstarting rms:    ", std(obs_rvs))
+println("no feat new rms: ", std(GLOM_rvs_at_obs_xs - obs_rvs))
 
 using Plots
 plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
@@ -150,7 +190,6 @@ plot!(plt, plot_xs, GLOM_ind1_at_plot_xs, ribbons=GLOM_ind1_err_at_plot_xs, fill
 
 plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
 plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
-
 
 ## Coefficient exploration
 
@@ -183,11 +222,10 @@ end
 best_fits = sortperm(nℓs)
 
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
-post, post_err, post_obs, post_obs_err = GLOM_RV.GLOM_posteriors(problem_definitions[best_fits[1]], plot_xs, all_fit_total_hyperparameters[best_fits[1]])
+post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definitions[best_fits[1]], plot_xs, all_fit_total_hyperparameters[best_fits[1]])
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
 GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
 GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
-GLOM_rvs_err_at_obs_xs, GLOM_ind1_err_at_obs_xs, GLOM_ind2_err_at_obs_xs = post_obs_err
 
 using Plots
 plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
@@ -202,6 +240,7 @@ plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fill
 
 ## Finding a planet?
 
+@assert inject_planet
 nlogprior_hyperparameters(total_hyper::Vector, d::Int) = GLOM_RV.nlogprior_hyperparameters(kernel_hyper_priors, problem_definition.n_kern_hyper, total_hyper, d)
 problem_definition_rv = GLO_RV(problem_definition, 1u"d", problem_definition.normals[1]u"m/s")
 
@@ -440,11 +479,10 @@ println("evidence for GLOM + planet model: " * string(E2))
 
 ## Plotting final results
 
-post, post_err, post_obs, post_obs_err = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit3_total_hyperparameters; y_obs=GLOM_RV.remove_kepler(problem_definition_rv, full_ks))
+post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit3_total_hyperparameters; y_obs=GLOM_RV.remove_kepler(problem_definition_rv, full_ks))
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
 GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
 GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
-GLOM_rvs_err_at_obs_xs, GLOM_ind1_err_at_obs_xs, GLOM_ind2_err_at_obs_xs = post_obs_err
 
 activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
 clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity

@@ -27,6 +27,11 @@ using HDF5
 
 ## Problem setup
 
+# CHANGE: whether you want to look for a planet that you inject
+inject_planet = false
+# inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
+inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
+
 # CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
 # kernel
 kernel_choice = 3
@@ -58,10 +63,9 @@ GLOM_RV.remove_mean!(obs_xs)
 
 # CHANGE: rvs and their errors go here
 obs_rvs = collect(data[!, "b1"])
-
-# inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
-inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
-obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
+if inject_planet
+    obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
+end
 obs_rvs_err = data[!, "b1"] ./ data[!, "t1"]
 
 # removing means as the GP model assumes zero mean
@@ -129,6 +133,9 @@ GLOM_rvs_at_obs_xs = post_obs[1]
 activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
 clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 
+println("\nstarting rms:    ", std(obs_rvs))
+println("no feat new rms: ", std(GLOM_rvs_at_obs_xs - obs_rvs))
+
 using Plots
 plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
 plot!(plt, plot_xs, GLOM_rvs_at_plot_xs, ribbons=GLOM_rvs_err_at_plot_xs, fillalpha=0.3)
@@ -182,6 +189,7 @@ plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fill
 
 ## Finding a planet?
 
+@assert inject_planet
 nlogprior_hyperparameters(total_hyper::Vector, d::Int) = GLOM_RV.nlogprior_hyperparameters(kernel_hyper_priors, problem_definition.n_kern_hyper, total_hyper, d)
 problem_definition_rv = GLO_RV(problem_definition, 1u"d", problem_definition.normals[1]u"m/s")
 
