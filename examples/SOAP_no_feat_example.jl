@@ -9,17 +9,20 @@ using LinearAlgebra
 using DataFrames
 using CSV
 
-# For GLOM
+# for GLOM
 import GPLinearODEMaker; GLOM = GPLinearODEMaker
 
-# For this module
+# for this module
 using GLOM_RV_Example; GLOM_RV = GLOM_RV_Example
 
-# For units in orbit fitting functions
+# for units in orbit fitting functions
 using UnitfulAstro, Unitful
 
-# For getting times from HDF5 file the SAFE stats were generated from
+# for getting times from HDF5 file the SAFE stats were generated from
 using HDF5
+
+# for std()
+using Statistics
 
 #####################################################################
 # CTRL+F "CHANGE"TO FIND PLACES WHERE YOU SHOULD MAKE MODIFICATIONS #
@@ -129,9 +132,6 @@ post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, 
 GLOM_rvs_at_plot_xs = post[1]
 GLOM_rvs_err_at_plot_xs = post_err[1]
 GLOM_rvs_at_obs_xs = post_obs[1]
-
-activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
-clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 
 println("\nstarting rms:    ", std(obs_rvs))
 println("no feat new rms: ", std(GLOM_rvs_at_obs_xs - obs_rvs))
@@ -431,9 +431,6 @@ post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, 
 GLOM_rvs_at_plot_xs = post[1]
 GLOM_rvs_err_at_plot_xs = post_err[1]
 GLOM_rvs_at_obs_xs = post_obs[1]
-
-activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
-clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 
 using Plots
 plt = scatter(obs_xs, GLOM_RV.remove_kepler(problem_definition_rv, full_ks), yerror=obs_rvs_err)

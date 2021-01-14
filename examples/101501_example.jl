@@ -125,8 +125,6 @@ GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
 GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
 GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
 
-activity_rvs = GLOM_rvs_at_obs_xs  # the best guess for activity RVs
-clean_rvs = obs_rvs - activity_rvs  # the best guess for RVs without activity
 #=
 using Plots
 plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
