@@ -31,7 +31,7 @@ using Statistics
 
 ## Problem setup
 
-length(ARGS) > 1 ? n_bs = parse(Int, ARGS[2]) : n_bs = 5
+length(ARGS) > 0 ? n_bs = parse(Int, ARGS[1]) : n_bs = 5
 @assert 1 < n_bs < 6
 
 # CHANGE: whether you want to look for a planet that you inject
@@ -97,6 +97,7 @@ Xte = Matrix(data[!, b_inds])'
 # PCA version
 M = fit(PCA, Xte; maxoutdim=2)
 ZT = M.proj
+println("Z: ", ZT')
 
 z = MultivariateStats.transform(M, Xte)  # = Z * (Xte .- M.mean)
 σ_β = (Matrix(data[!, b_inds]) ./ Matrix(data[!, t_inds]))'
@@ -190,36 +191,42 @@ function posts(prob_def, hyperparameters)
         GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs,
         GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs
 end
-function std_print(after_model_std)
+function std_print()
     println("\nstarting std:           ", rv_std)
     println("PPCA SAFE feat new std: ", after_model_std)
     println("std from noise ~        ", noise_std)
     println("std from activity: ", sqrt(rv_std^2 - noise_std^2), " -> ", sqrt(maximum([0, after_model_std^2 - noise_std^2])))
 end
-
-GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
-    GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs,
-    GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs =
-    posts(problem_definition, fit1_total_hyperparameters)
-std_print(std(GLOM_rvs_at_obs_xs - obs_rvs))
+using Plots
+function plots(name)
+    plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err; label="rv obs")
+    plot!(plt, plot_xs, GLOM_rvs_at_plot_xs, ribbons=GLOM_rvs_err_at_plot_xs, fillalpha=0.3; label="model")
+    savefig("examples/figs/" * name * "_0")
+    plt = scatter(obs_xs, obs_indicator1, yerror=obs_indicator1_err; label="ind1 obs")
+    plot!(plt, plot_xs, GLOM_ind1_at_plot_xs, ribbons=GLOM_ind1_err_at_plot_xs, fillalpha=0.3; label="model")
+    savefig("examples/figs/" * name * "_1")
+    plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err; label="ind2 obs")
+    plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3; label="model")
+    savefig("examples/figs/" * name * "_2")
+end
 
 problem_definition.noise[1:n_out:end] .*= 100
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
     GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs,
     GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs =
     posts(problem_definition, fit1_total_hyperparameters)
-std_print(std(GLOM_rvs_at_obs_xs - obs_rvs))
+after_model_std = std(GLOM_rvs_at_obs_xs - obs_rvs)
+std_print()
+plots("comp_$(n_bs)_norv")
 problem_definition.noise[:] = holder
 
-# using Plots
-# plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
-# plot!(plt, plot_xs, GLOM_rvs_at_plot_xs, ribbons=GLOM_rvs_err_at_plot_xs, fillalpha=0.3)
-#
-# plt = scatter(obs_xs, obs_indicator1, yerror=obs_indicator1_err)
-# plot!(plt, plot_xs, GLOM_ind1_at_plot_xs, ribbons=GLOM_ind1_err_at_plot_xs, fillalpha=0.3)
-#
-# plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
-# plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
+GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
+    GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs,
+    GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs =
+    posts(problem_definition, fit1_total_hyperparameters)
+after_model_std = std(GLOM_rvs_at_obs_xs - obs_rvs)
+std_print()
+plots("comp_$(n_bs)_norm")
 
 ## Coefficient exploration
 
