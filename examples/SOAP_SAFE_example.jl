@@ -51,7 +51,7 @@ kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 star_rot_rate = 25.05  # days
 
 # importing SOAP SAFE data
-data = CSV.read("timecorssim_SAFE.csv", DataFrame)[1:2:end, :]
+data = CSV.read("timecorssim_SAFE_snr600.csv", DataFrame)[1:2:end, :]
 
 # CHANGE: observation times go here
 obs_xs = h5open("D:/Christian/Downloads/res-1000-1years_full_id1.h5")["phases"][1:2:366] * star_rot_rate
@@ -92,19 +92,18 @@ Xte = Matrix(data[!, b_inds])'
 #     M = W'W .+ m.σ² * Matrix{T}(I, n, n)
 #     return inv(M)*m.W'
 # end
-# ZT = transforming_mat(M)'
+# Z = transforming_mat(M)
 
 # PCA version
 M = fit(PCA, Xte; maxoutdim=2)
-ZT = M.proj
-println("Z: ", ZT')
+Z = M.proj'
+println("Z: ", Z)
 
 z = MultivariateStats.transform(M, Xte)  # = Z * (Xte .- M.mean)
-σ_β = (Matrix(data[!, b_inds]) ./ Matrix(data[!, t_inds]))'
+var_β = ((Matrix(data[!, b_inds]) ./ Matrix(data[!, t_inds]))').^2
 σ_z = zeros(size(z))
 for i in 1:size(z, 2)
-    hmm = ZT .* σ_β[:, i]
-    σ_z[:, i] = sqrt.(diag(hmm' * hmm))
+    σ_z[:, i] = sqrt.(diag(Z * Diagonal(var_β[:, 1]) * Z'))
 end
 
 ## adding indicators
@@ -153,7 +152,7 @@ append!(initial_total_hyperparameters, initial_hypers[kernel_choice])
 
 # CHANGE: Setting kernel hyperparameter priors and kick function
 # kick functions help avoid saddle points
-tighten_lengthscale_priors = 3
+tighten_lengthscale_priors = 5
 if kernel_name in ["pp", "se", "m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
         GLOM_RV.kernel_hyper_priors_1λ(hps, d, star_rot_rate, star_rot_rate / 2 / tighten_lengthscale_priors)
@@ -177,7 +176,7 @@ workspace = GLOM.nlogL_matrix_workspace(problem_definition, fit1_total_hyperpara
 
 ## Plotting initial results
 
-plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
+plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 1000))
 holder = copy(problem_definition.noise)
 rv_std = std(obs_rvs)
 noise_std = norm(holder[1:n_out:end])/sqrt(length(obs_rvs))
@@ -217,7 +216,7 @@ GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
     posts(problem_definition, fit1_total_hyperparameters)
 after_model_std = std(GLOM_rvs_at_obs_xs - obs_rvs)
 std_print()
-plots("comp_$(n_bs)_norv")
+plots("comp_$(n_bs)_norv_snr600")
 problem_definition.noise[:] = holder
 
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
@@ -226,7 +225,7 @@ GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
     posts(problem_definition, fit1_total_hyperparameters)
 after_model_std = std(GLOM_rvs_at_obs_xs - obs_rvs)
 std_print()
-plots("comp_$(n_bs)_norm")
+plots("comp_$(n_bs)_norm_snr600")
 
 ## Coefficient exploration
 
