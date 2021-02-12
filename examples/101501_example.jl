@@ -102,11 +102,11 @@ if kernel_name in ["pp", "se", "m52"]
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_1λ!(hps)
 elseif kernel_name == "qp"
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_qp(hps, d, [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate / 2, star_rot_rate / 2, 0.4] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_qp(hps, d, [star_rot_rate, 2 * star_rot_rate, 1.], [star_rot_rate / 2, star_rot_rate / 2, 0.4] ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_qp!(hps)
 elseif kernel_name in ["se_se", "m52_m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate / 2, star_rot_rate / 2, 1] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [star_rot_rate, 2 * star_rot_rate, 1.], [star_rot_rate / 2, star_rot_rate / 2, 1.] ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_2λ!(hps)
 else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
