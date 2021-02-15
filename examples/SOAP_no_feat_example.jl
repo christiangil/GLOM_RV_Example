@@ -2,9 +2,6 @@ using Pkg
 Pkg.activate("examples")
 Pkg.instantiate()
 
-# for std()
-using Statistics
-
 # for det()
 using LinearAlgebra
 
@@ -12,20 +9,31 @@ using LinearAlgebra
 using DataFrames
 using CSV
 
-# For GLOM
+# for GLOM
 import GPLinearODEMaker; GLOM = GPLinearODEMaker
 
-# For this module
+# for this module
 using GLOM_RV_Example; GLOM_RV = GLOM_RV_Example
 
-# For units in orbit fitting functions
+# for units in orbit fitting functions
 using UnitfulAstro, Unitful
+
+# for getting times from HDF5 file the SAFE stats were generated from
+using HDF5
+
+# for std()
+using Statistics
 
 #####################################################################
 # CTRL+F "CHANGE"TO FIND PLACES WHERE YOU SHOULD MAKE MODIFICATIONS #
 #####################################################################
 
 ## Problem setup
+
+# CHANGE: whether you want to look for a planet that you inject
+inject_planet = false
+# inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
+inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
 
 # CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
 # kernel
@@ -36,42 +44,42 @@ kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
-star_rot_rate = 16.28  # days
+star_rot_rate = 25.05  # days
 
-# importing Yale's 101501 data
-data = CSV.read("examples/101501_activity.csv", DataFrame)
+# importing SOAP SAFE data
+data = CSV.read("timecorssim_SAFE.csv", DataFrame)[1:2:end, :]
 
 # CHANGE: observation times go here
-obs_xs = collect(data[!, "Time [MJD]"])
+obs_xs = h5open("D:/Christian/Downloads/res-1000-1years_full_id1.h5")["phases"][1:2:366] * star_rot_rate
 # taking out the mean observation times makes the optimization easier for models
 # with periodic parameters
 GLOM_RV.remove_mean!(obs_xs)
 
-# CHANGE: rvs and their errors go here
-obs_rvs = data[!, "CCF RV [m/s]"]
-inject_ks = GLOM_RV.kep_signal(; K=50u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
-obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
-obs_rvs_err = data[!, "CCF RV Error [m/s]"]
+# using Plots
+# plot(data[!, "b1"]; label="b1")
+# plot!(data[!, "t1"]; label="t1")
+# savefig("b1_and_t1.png")
+# plot(data[!, "b1"] ./ data[!, "t1"]; label="b1/t1")
+# savefig("b1_over_t1.png")
+# histogram(data[!, "b1"] ./ data[!, "t1"]; label="b1/t1")
+# savefig("b1_over_t1_hist.png")
 
-# CHANGE: activity indicators and thier errors go here
-# you can actually have as many as you want, but obviously it will take longer
-# to fit
-obs_indicator1 = data[!, "CCF FWHM [m/s]"]
-obs_indicator1_err = data[!, "CCF FWHM Err. [m/s]"]
-obs_indicator2 = data[!, "BIS [m/s]"]
-obs_indicator2_err = repeat([std(obs_indicator2)], length(obs_indicator2))  # I just put something here
+# CHANGE: rvs and their errors go here
+obs_rvs = collect(data[!, "b1"])
+if inject_planet
+    obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
+end
+obs_rvs_err = data[!, "b1"] ./ data[!, "t1"]
 
 # removing means as the GP model assumes zero mean
 GLOM_RV.remove_mean!(obs_rvs)
-GLOM_RV.remove_mean!(obs_indicator1)
-GLOM_RV.remove_mean!(obs_indicator2)
 
 # CHANGE: change these lines if you add more than 2 indicators
 # this takes the data and riffles it together so it takes the form
 # [rv_1, ind1_1, ind2_1, rv_2, ind1_2, ind2_2, ...]
-n_out = 3  # number of indicators + 1
-obs_ys = collect(Iterators.flatten(zip(obs_rvs, obs_indicator1, obs_indicator2)))
-obs_noise = collect(Iterators.flatten(zip(obs_rvs_err, obs_indicator1_err, obs_indicator2_err)))
+n_out = 1  # number of indicators + 1
+obs_ys = collect(Iterators.flatten(zip(obs_rvs)))
+obs_noise = collect(Iterators.flatten(zip(obs_rvs_err)))
 
 # How many differention orders we want in the GLOM model
 n_dif = 2 + 1
@@ -79,7 +87,7 @@ n_dif = 2 + 1
 # CHANGE: consider changing a0 (the GLOM coefficients that are used, see
 # commented lines below)
 # If all a's active:
-problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 1];[1 1 1];[1 1 1]])
+problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 1];])
 # problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 0];[1 0 1];[1 0 1]])
 
 # Makes the std of each output equal to 1, improves fitting stability
@@ -102,11 +110,11 @@ if kernel_name in ["pp", "se", "m52"]
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_1λ!(hps)
 elseif kernel_name == "qp"
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_qp(hps, d, [star_rot_rate, 2 * star_rot_rate, 1.], [star_rot_rate / 2, star_rot_rate / 2, 0.4] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_qp(hps, d, [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate / 2, star_rot_rate / 2, 0.4] ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_qp!(hps)
 elseif kernel_name in ["se_se", "m52_m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [star_rot_rate, 2 * star_rot_rate, 1.], [star_rot_rate / 2, star_rot_rate / 2, 1.] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate / 2, star_rot_rate / 2, 1] ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_2λ!(hps)
 else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
@@ -121,21 +129,16 @@ workspace = GLOM.nlogL_matrix_workspace(problem_definition, fit1_total_hyperpara
 
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
 post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
-GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
-GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
-GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
+GLOM_rvs_at_plot_xs = post[1]
+GLOM_rvs_err_at_plot_xs = post_err[1]
+GLOM_rvs_at_obs_xs = post_obs[1]
 
-#=
+println("\nstarting rms:    ", std(obs_rvs))
+println("no feat new rms: ", std(GLOM_rvs_at_obs_xs - obs_rvs))
+
 using Plots
 plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
 plot!(plt, plot_xs, GLOM_rvs_at_plot_xs, ribbons=GLOM_rvs_err_at_plot_xs, fillalpha=0.3)
-
-plt = scatter(obs_xs, obs_indicator1, yerror=obs_indicator1_err)
-plot!(plt, plot_xs, GLOM_ind1_at_plot_xs, ribbons=GLOM_ind1_err_at_plot_xs, fillalpha=0.3)
-
-plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
-plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
-=#
 
 ## Coefficient exploration
 
@@ -186,6 +189,7 @@ plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fill
 
 ## Finding a planet?
 
+@assert inject_planet
 nlogprior_hyperparameters(total_hyper::Vector, d::Int) = GLOM_RV.nlogprior_hyperparameters(kernel_hyper_priors, problem_definition.n_kern_hyper, total_hyper, d)
 problem_definition_rv = GLO_RV(problem_definition, 1u"d", problem_definition.normals[1]u"m/s")
 
@@ -225,7 +229,7 @@ using Distributed
 # CHANGE: can change full_fit to false to just do the epicyclic fit which is
 # ~40x faster. Distributing the compute only gives me a factor of 2, so only
 # try if the keplerian fitting takes a long time
-use_distributed = false
+use_distributed = true
 full_fit = true
 
 # concurrency is weird so you may have to run this twice
@@ -274,7 +278,7 @@ likelihoods = zeros(amount_of_periods)
 unnorm_posteriors = zeros(amount_of_periods)
 
 @time if use_distributed
-    # takes around 8s for 101501 data with 6 workers and 1200 periods
+    # takes around 25s for 1/2 of SAFE data with 6 workers and 5000 periods
     holder = pmap(x->kep_unnormalized_posterior_distributed(x), period_grid, batch_size=Int(floor(amount_of_periods / (nworkers() + 1)) + 1))
     likelihoods[:] = [holder[i][1] for i in 1:length(holder)]
     unnorm_posteriors[:] = [holder[i][2] for i in 1:length(holder)]
@@ -294,7 +298,6 @@ println("found period:    $(ustrip(best_period)) days")
 # plot(ustrip.(period_grid), likelihoods; xaxis=:log, leg=false)
 # plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
 
-
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
 ####################################################################################################
@@ -306,7 +309,7 @@ println("before wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 #=
 plot_kep_xs = collect(LinRange(0, ustrip(best_period), 1000))
 # scatter(remainder(problem_definition.x_obs, ustrip(best_period)), ustrip.(problem_definition_rv.rv); yerror=ustrip.(problem_definition_rv.rv_noise), label="data")
-plot!(plot_kep_xs, ustrip.(current_ks.(plot_kep_xs.*u"d")); label="kep")
+plot(plot_kep_xs, ustrip.(current_ks.(plot_kep_xs.*u"d")); label="kep")
 =#
 fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
     problem_definition_rv, fit1_total_hyperparameters, kernel_hyper_priors,
@@ -421,3 +424,14 @@ println("evidence for GLOM + planet model: " * string(E2))
 
 # # This should be pretty close to true
 # GLOM_RV.test_∇∇nlogL_kep(problem_definition_rv, workspace.Σ_obs, current_ks; include_priors=true)
+
+## Plotting final results
+
+post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit3_total_hyperparameters; y_obs=GLOM_RV.remove_kepler(problem_definition_rv, full_ks))
+GLOM_rvs_at_plot_xs = post[1]
+GLOM_rvs_err_at_plot_xs = post_err[1]
+GLOM_rvs_at_obs_xs = post_obs[1]
+
+using Plots
+plt = scatter(obs_xs, GLOM_RV.remove_kepler(problem_definition_rv, full_ks), yerror=obs_rvs_err)
+plot!(plt, plot_xs, GLOM_rvs_at_plot_xs, ribbons=GLOM_rvs_err_at_plot_xs, fillalpha=0.3)

@@ -242,13 +242,14 @@ fit_GLOM(problem_definition::GLOM.GLO,
 function GLOM_posteriors(
     problem_definition::GLOM.GLO,
     xs_eval::Vector{T1},
-    fit_total_hyperparameters::Vector{T2}
-    ) where {T1<:Real, T2<:Real}
+    fit_total_hyperparameters::Vector{T2};
+    y_obs::Vector{T3}=problem_definition.y_obs
+    ) where {T1<:Real, T2<:Real, T3<:Real}
 
     unriffle_posts(post) = [post[i:problem_definition.n_out:end] .* problem_definition.normals[i] for i in 1:problem_definition.n_out]
 
-    results = GLOM.GP_posteriors(problem_definition, xs_eval, fit_total_hyperparameters; return_Σ=true, return_mean_obs=true)
-    posts = [unriffle_posts(result) for result in results]
+    results = GLOM.GP_posteriors(problem_definition, xs_eval, fit_total_hyperparameters; return_Σ=true, return_mean_obs=true, y_obs=y_obs)
+    posts = [unriffle_posts(results[i]) for i in 1:3]
     return posts
 end
 

@@ -94,6 +94,6 @@ centered_rand(rng::AbstractRNG; center::Real=0, scale::Real=1) = (scale * (rand(
 centered_rand(d::Integer; rng::AbstractRNG=Random.GLOBAL_RNG, center::Real=0, scale::Real=1) = centered_rand(rng, d; center=center, scale=scale)
 centered_rand(rng::AbstractRNG, d; center::Real=0, scale::Real=1) = (scale .* (rand(rng, d) .- 0.5)) .+ center
 
-function remove_mean!(vec::Vector)
+function remove_mean!(vec::AbstractVector)
     vec .-= mean(vec)
 end
