@@ -54,49 +54,6 @@ kep = kep_simplify!(kep, 1 - esq, jsq)
 kep = kep_simplify!(kep, sqrt(jsq), j)
 kep = kep_simplify!(kep, 1 - e * cosEA, qmod)
 
-# function kep_deriv(
-# 	K::Unitful.Velocity,
-# 	P::Unitful.Time,
-# 	M0::Real,
-# 	h::Real,
-# 	k::Real,
-# 	γ::Unitful.Velocity,
-# 	t::Unitful.Time,
-# 	dorder::Vector{<:Integer})
-#
-# 	GLOM_RV.validate_kepler_dorder(dorder)
-#
-# 	ind1 = findfirst(!iszero, dorder)
-# 	if ind1 == nothing
-# 		func = kep
-# 	else
-# 		dorder[ind1] -= 1
-# 		ind2 = findfirst(!iszero, dorder)
-# 		if ind2 == nothing
-# 			func = dkeps[ind1]
-# 		else
-# 			func = ddkeps[ind1][ind2]
-# 			# func = ddkeps[ind2][ind1]
-# 		end
-# 		dorder[ind1] += 1
-# 	end
-#
-	# EAval = GLOM_RV.ecc_anomaly(t, P, M0, sqrt(h * h + k * k))
-	# cosE = cos(EAval)
-	# esq = h * h + k * k
-	# e = sqrt(esq)
-	# jsq = 1 - esq
-	# j = sqrt(jsq)
-	# qmod = 1 - e * cosE
-#
-# 	return float(subs(func,
-# 		(cosEA, cosE), (sinEA, sin(EAval)), (hs, h), (ks, k),
-# 		(esqs, esq), (es, e), (jsqs, jsq), (js, j), (qmods, qmod),
-# 		(Ks, ustrip(K)), (Ps, ustrip(P)), (M0s, M0), (γs, ustrip(γ)),
-# 		(ts, GLOM_RV.convert_and_strip_units(unit(P), t)), (πs, π))) *
-# 		(unit(K)^(1-dorder[1])) / (unit(P)^dorder[2]) / (unit(γ)^dorder[6])
-# end
-
 begin
 	file_loc = "src/keplerian_derivatives.jl"
 	io = open(file_loc, "w")

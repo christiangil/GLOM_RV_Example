@@ -248,8 +248,8 @@ function GLOM_posteriors(
 
     unriffle_posts(post) = [post[i:problem_definition.n_out:end] .* problem_definition.normals[i] for i in 1:problem_definition.n_out]
 
-    results = GLOM.GP_posteriors(problem_definition, xs_eval, fit_total_hyperparameters; return_Σ=true, return_mean_obs=true, y_obs=y_obs)
-    posts = [unriffle_posts(results[i]) for i in 1:3]
+    results = GLOM.GP_posteriors(problem_definition, xs_eval, fit_total_hyperparameters; return_mean_obs=true, y_obs=y_obs)
+    posts = [unriffle_posts(result) for result in results]
     return posts
 end
 

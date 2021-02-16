@@ -2,11 +2,6 @@ using Pkg
 Pkg.activate("examples")
 Pkg.instantiate()
 
-# Pkg.rm("GPLinearODEMaker")
-# Pkg.add(name="GPLinearODEMaker", version="0.1.2")
-# Pkg.pin("GPLinearODEMaker")
-# Pkg.status("GPLinearODEMaker")
-
 # for std()
 using Statistics
 

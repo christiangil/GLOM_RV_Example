@@ -177,7 +177,6 @@ workspace = GLOM.nlogL_matrix_workspace(problem_definition, fit1_total_hyperpara
 ## Plotting initial results
 
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 1000))
-holder = copy(problem_definition.noise)
 rv_std = std(obs_rvs)
 noise_std = norm(holder[1:n_out:end])/sqrt(length(obs_rvs))
 
@@ -209,6 +208,7 @@ function plots(name)
     savefig("examples/figs/" * name * "_2")
 end
 
+holder = copy(problem_definition.noise)
 problem_definition.noise[1:n_out:end] .*= 100
 GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs,
     GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs,
