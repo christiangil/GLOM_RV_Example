@@ -64,7 +64,7 @@ function log_gaussian(x::Real, parameters::Vector{<:Real}; d::Integer=0, min::Re
     @assert min < max
     normalization = 1 - gauss_cdf(min - μ) - gauss_cdf(μ - max)
     if d == 0
-        (min < x < max) ? val = -((x - μ)^2/(2 * σ * σ)) - log(2 * π * σ * σ )//2 - log(normalization) : val = -Inf
+        (min < x < max) ? val = -((x - μ)^2/(2 * σ * σ)) - log(2 * π * σ * σ )/2 - log(normalization) : val = -Inf
     elseif d == 1
         (min < x < max) ? val = -(x - μ)/(σ * σ) : val = 0
     else
