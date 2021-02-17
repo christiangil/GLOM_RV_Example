@@ -317,7 +317,7 @@ println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 @time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
-    problem_definition_rv, fit1_total_hyperparameters, kernel_hyper_priors,
+    problem_definition_rv, fit2_total_hyperparameters, kernel_hyper_priors,
     add_kick!, current_ks; avoid_saddle=false)
 
 #=
