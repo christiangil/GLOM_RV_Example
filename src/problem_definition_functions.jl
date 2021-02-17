@@ -20,3 +20,6 @@ struct GLO_RV
 		return new(prob_def, prob_def.x_obs .* time_unit, rv_factor)
 	end
 end
+
+get_rv(prob_def::GLO_RV) = prob_def.GLO.y_obs[1:prob_def.GLO.n_out:end] .* prob_def.rv_factor
+get_rv_noise(prob_def::GLO_RV) = prob_def.GLO.noise[1:prob_def.GLO.n_out:end] .* prob_def.rv_factor

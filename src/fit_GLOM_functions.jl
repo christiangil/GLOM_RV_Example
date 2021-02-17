@@ -278,9 +278,9 @@ function fit_GLOM_and_kep!(
     init_total_hyper::Vector{<:Real},
     kernel_hyper_priors::Function,
     add_kick!::Function,
-    current_ks::Union{kep_signal, kep_signal_wright};
-    avoid_saddle::Bool=true,
-    print_stuff::Bool=true)
+    current_ks::KeplerSignal;
+    print_stuff::Bool=true,
+    kwargs...)
 
     current_hyper = GLOM.remove_zeros(init_total_hyper)
     current_y = copy(prob_def_rv.GLO.y_obs)
@@ -288,7 +288,7 @@ function fit_GLOM_and_kep!(
     result_change = Inf
     num_iter = 0
     while result_change > 1e-4 && num_iter < 30
-        current_ks = fit_kepler(prob_def_rv, workspace.Σ_obs, current_ks; print_stuff=false, avoid_saddle=avoid_saddle)
+        current_ks = fit_kepler(prob_def_rv, workspace.Σ_obs, current_ks; print_stuff=false, kwargs...)
         current_y[:] = remove_kepler(prob_def_rv, current_ks)
         fit_total_hyperparameters, result = fit_GLOM!(
             workspace,

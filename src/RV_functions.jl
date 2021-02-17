@@ -551,7 +551,9 @@ function fit_kepler_epicyclic(
     times::Vector{T2} where T2<:Unitful.Time,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     P::Unitful.Time;
-    data_unit::Unitful.Velocity=1u"m/s"
+    data_unit::Unitful.Velocity=1u"m/s",
+    print_stuff::Bool=true,
+    avoid_saddle::Bool=true
     ) where T<:Real
 
 
