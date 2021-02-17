@@ -295,7 +295,7 @@ println("found period:    $(ustrip(best_period)) days")
 # plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
 
 ####################################################################################################
-# Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
+# Refitting GP with full planet signal at found period subtracted (K,ω,γ,M0,e-linear, P-fixed) #
 ####################################################################################################
 remainder(vec, x) = [i > 0 ? i % x : (i % x) + x for i in vec]
 
