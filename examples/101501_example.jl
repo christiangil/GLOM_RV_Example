@@ -51,27 +51,40 @@ GLOM_RV.remove_mean!(obs_xs)
 obs_rvs = data[!, "CCF RV [m/s]"]
 inject_ks = GLOM_RV.kep_signal(; K=50u"m/s", P=sqrt(2)*5u"d", M0=rand()*2*π, ω_or_k=rand()*2*π, e_or_h=0.1)
 obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
+GLOM_RV.remove_mean!(obs_rvs)
 obs_rvs_err = data[!, "CCF RV Error [m/s]"]
 
-# CHANGE: activity indicators and thier errors go here
+# initializing RV and indicator array
+rvs_and_inds_holder = [obs_rvs]
+rvs_and_inds_err_holder = [obs_rvs_err]
+
+function append_vec!(to_be_append_to::Vector{Vector{T}}, to_append::Vector{T}; remove_mean::Bool=true) where T
+    if remove_mean
+        GLOM_RV.remove_mean!(to_append)
+    end
+    append!(to_be_append_to, [to_append])
+end
+function add_indicator!(rvs_and_inds::Vector{Vector{T}}, rvs_and_inds_err::Vector{Vector{T}}, indicator::Vector{T}, indicator_err::Vector{T}) where T
+    append_vec!(rvs_and_inds, indicator; remove_mean=true)
+    append_vec!(rvs_and_inds_err, indicator_err; remove_mean=false)
+end
+
+
+# CHANGE: activity indicators and their errors go here
 # you can actually have as many as you want, but obviously it will take longer
 # to fit
-obs_indicator1 = data[!, "CCF FWHM [m/s]"]
-obs_indicator1_err = data[!, "CCF FWHM Err. [m/s]"]
-obs_indicator2 = data[!, "BIS [m/s]"]
-obs_indicator2_err = repeat([std(obs_indicator2)], length(obs_indicator2))  # I just put something here
+add_indicator!(rvs_and_inds_holder, rvs_and_inds_err_holder, data[!, "CCF FWHM [m/s]"], data[!, "CCF FWHM Err. [m/s]"])
+add_indicator!(rvs_and_inds_holder, rvs_and_inds_err_holder, data[!, "BIS [m/s]"], repeat([std(data[!, "BIS [m/s]"])], length(data[!, "BIS [m/s]"])))
 
-# removing means as the GP model assumes zero mean
-GLOM_RV.remove_mean!(obs_rvs)
-GLOM_RV.remove_mean!(obs_indicator1)
-GLOM_RV.remove_mean!(obs_indicator2)
+# CHANGE: which of the indicators do you want use?
+inds_to_use = [1,2,3]  # 1:length(rvs_and_inds_holder) to use all
+@assert inds_to_use[1] == 1  # inds_to_use needs to include the RVs first
 
-# CHANGE: change these lines if you add more than 2 indicators
-# this takes the data and riffles it together so it takes the form
-# [rv_1, ind1_1, ind2_1, rv_2, ind1_2, ind2_2, ...]
-n_out = 3  # number of indicators + 1
-obs_ys = collect(Iterators.flatten(zip(obs_rvs, obs_indicator1, obs_indicator2)))
-obs_noise = collect(Iterators.flatten(zip(obs_rvs_err, obs_indicator1_err, obs_indicator2_err)))
+rvs_and_inds = rvs_and_inds_holder[inds_to_use]
+rvs_and_inds_err = rvs_and_inds_err_holder[inds_to_use]
+n_out = length(rvs_and_inds)  # number of indicators + 1
+obs_ys = collect(Iterators.flatten(zip(rvs_and_inds...)))
+obs_noise = collect(Iterators.flatten(zip(rvs_and_inds_err...)))
 
 # How many differention orders we want in the GLOM model
 n_dif = 2 + 1
@@ -79,7 +92,7 @@ n_dif = 2 + 1
 # CHANGE: consider changing a0 (the GLOM coefficients that are used, see
 # commented lines below)
 # If all a's active:
-problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 1];[1 1 1];[1 1 1]])
+problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=ones(n_out, n_dif))
 # problem_definition = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a0=[[1. 1 0];[1 0 1];[1 0 1]])
 
 # Makes the std of each output equal to 1, improves fitting stability
@@ -120,21 +133,18 @@ workspace = GLOM.nlogL_matrix_workspace(problem_definition, fit1_total_hyperpara
 ## Plotting initial results
 
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
-post, post_err, post_obs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
-GLOM_rvs_at_plot_xs, GLOM_ind1_at_plot_xs, GLOM_ind2_at_plot_xs = post
-GLOM_rvs_err_at_plot_xs, GLOM_ind1_err_at_plot_xs, GLOM_ind2_err_at_plot_xs = post_err
-GLOM_rvs_at_obs_xs, GLOM_ind1_at_obs_xs, GLOM_ind2_at_obs_xs = post_obs
+GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(problem_definition, plot_xs, fit1_total_hyperparameters)
 
 #=
 using Plots
-plt = scatter(obs_xs, obs_rvs, yerror=obs_rvs_err)
-plot!(plt, plot_xs, GLOM_rvs_at_plot_xs, ribbons=GLOM_rvs_err_at_plot_xs, fillalpha=0.3)
+plt = scatter(obs_xs, rvs_and_inds[1]; yerror=rvs_and_inds_err[1], label="obs RVs")
+plot!(plt, plot_xs, GLOM_at_plot_xs[1]; ribbons=GLOM_err_at_plot_xs[1], fillalpha=0.3, label="GLOM RVs")
 
-plt = scatter(obs_xs, obs_indicator1, yerror=obs_indicator1_err)
-plot!(plt, plot_xs, GLOM_ind1_at_plot_xs, ribbons=GLOM_ind1_err_at_plot_xs, fillalpha=0.3)
+plt = scatter(obs_xs, rvs_and_inds[2]; yerror=rvs_and_inds_err[2], label="obs ind 1")
+plot!(plt, plot_xs, GLOM_at_plot_xs[2]; ribbons=GLOM_err_at_plot_xs[2], fillalpha=0.3, label="GLOM ind 1")
 
-plt = scatter(obs_xs, obs_indicator2, yerror=obs_indicator2_err)
-plot!(plt, plot_xs, GLOM_ind2_at_plot_xs, ribbons=GLOM_ind2_err_at_plot_xs, fillalpha=0.3)
+plt = scatter(obs_xs, rvs_and_inds[3]; yerror=rvs_and_inds_err[3], label="obs ind 2")
+plot!(plt, plot_xs, GLOM_at_plot_xs[3]; ribbons=GLOM_err_at_plot_xs[3], fillalpha=0.3, label="GLOM ind 2")
 =#
 
 ## Coefficient exploration
@@ -281,7 +291,7 @@ unnorm_posteriors = zeros(amount_of_periods)
 else
     # takes around 15s for 101501 data and 1200 periods
     for i in 1:amount_of_periods
-        likelihoods[i], unnorm_posteriors[i] = kep_unnormalized_posterior_distributed(period_grid[i]; fast=true)
+        likelihoods[i], unnorm_posteriors[i] = kep_unnormalized_posterior_distributed(period_grid[i])
     end
 end
 
@@ -315,7 +325,6 @@ println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 @time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
     problem_definition_rv, fit2_total_hyperparameters, kernel_hyper_priors,
     add_kick!, current_ks; avoid_saddle=false)
