@@ -281,8 +281,8 @@ function ∇nlogL_kep(data, times, covariance, ks, y; G=zeros(typeof(data[1]), n
     ∇nlogL_kep!(G, d, data, times, covariance, ks, y; kwargs...)
     return G
 end
-∇nlogL_kep(prob_def_rv::GLO_RV, covariance, ks; kwargs...) =
-    ∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
+∇nlogL_kep(glo_rv::GLO_RV, covariance, ks; kwargs...) =
+    ∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)
 
 function fit_kepler(
     data::Vector{T},
@@ -681,13 +681,13 @@ function fit_kepler_wright_linear_step(
     end
 end
 fit_kepler_wright_linear_step(
-    prob_def_rv::GLO_RV,
+    glo_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}} where T<:Real,
     P::Unitful.Time,
     M0::Real,
     e::Real;
     kwargs...) =
-    fit_kepler_wright_linear_step(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, P, M0, e; data_unit=prob_def_rv.rv_factor, kwargs...)
+    fit_kepler_wright_linear_step(glo_rv.GLO.y_obs, glo_rv.time, covariance, P, M0, e; data_unit=glo_rv.rv_factor, kwargs...)
 
 
 mutable struct kep_buffer_wright{T1<:Real}
@@ -783,6 +783,7 @@ function ∇nlogL_kep(data, times, covariance, init_ks::kep_signal_wright; kwarg
 end
 
 
+"You may have to mess wit the fit alpha"
 function fit_kepler_wright(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
@@ -926,18 +927,18 @@ function remove_kepler(
 
 end
 remove_kepler(
-    prob_def_rv::GLO_RV,
+    glo_rv::GLO_RV,
     ks::KeplerSignal;
     kwargs...) =
-    remove_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
+    remove_kepler(glo_rv.GLO.y_obs, glo_rv.time, ks; data_unit=glo_rv.rv_factor, kwargs...)
 
 
 fit_kepler(
-    prob_def_rv::GLO_RV,
+    glo_rv::GLO_RV,
     covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
     ks::KeplerSignal;
     kwargs...) where T<:Real =
-    fit_kepler(prob_def_rv.GLO.y_obs, prob_def_rv.time, covariance, ks; data_unit=prob_def_rv.rv_factor, kwargs...)
+    fit_kepler(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)
 
 kep_signal(ks::KeplerSignal) = kep_signal(ks.K, ks.P, ks.M0, ks.e, ks.ω, ks.γ)
 
@@ -983,29 +984,29 @@ end
 
 function ∇∇nlogL_GLOM_and_planet!(
     workspace::GLOM.nlogL_matrix_workspace,
-    prob_def_rv::GLO_RV,
+    glo_rv::GLO_RV,
     total_hyperparameters::Vector{<:Real},
     ks::kep_signal;
     include_kepler_priors::Bool=false)
 
-    GLOM.calculate_shared_∇nlogL_matrices!(workspace, prob_def_rv.GLO, total_hyperparameters)
+    GLOM.calculate_shared_∇nlogL_matrices!(workspace, glo_rv.GLO, total_hyperparameters)
 
-    non_zero_inds = copy(prob_def_rv.GLO.non_zero_hyper_inds)
+    non_zero_inds = copy(glo_rv.GLO.non_zero_hyper_inds)
     n_hyper = length(non_zero_inds)
     full_H = zeros(n_kep_parms + n_hyper, n_kep_parms + n_hyper)
     full_H[1:n_hyper, 1:n_hyper] = GLOM.∇∇nlogL_GLOM(
-        prob_def_rv.GLO, total_hyperparameters; Σ_obs=workspace.Σ_obs, y_obs=remove_kepler(prob_def_rv, ks))
+        glo_rv.GLO, total_hyperparameters; Σ_obs=workspace.Σ_obs, y_obs=remove_kepler(glo_rv, ks))
 
-    full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(prob_def_rv.GLO.y_obs, prob_def_rv.time, workspace.Σ_obs, ks; data_unit=prob_def_rv.rv_factor, include_priors=include_kepler_priors)
+    full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, workspace.Σ_obs, ks; data_unit=glo_rv.rv_factor, include_priors=include_kepler_priors)
 
     # TODO allow y and α to be passed to ∇∇nlogL_kep
-    y = remove_kepler(prob_def_rv, ks)
+    y = remove_kepler(glo_rv, ks)
     α = workspace.Σ_obs \ y
     for (i, nzind1) in enumerate(non_zero_inds)
         for j in 1:n_kep_parms
             d = zeros(Int, n_kep_parms)
             d[j] += 1
-            y1 = remove_kepler(prob_def_rv, ks; d=d)
+            y1 = remove_kepler(glo_rv, ks; d=d)
             full_H[i, j + n_hyper] = GLOM.d2nlogLdθ(y, y1, α, workspace.Σ_obs \ y1, workspace.βs[i])
         end
     end
