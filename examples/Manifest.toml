@@ -137,7 +137,7 @@ deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[GLOM_RV_Example]]
-deps = ["Dates", "LineSearches", "LinearAlgebra", "Optim", "Random", "SpecialFunctions", "Statistics", "Unitful", "UnitfulAstro"]
+deps = ["Dates", "GPLinearODEMaker", "LineSearches", "LinearAlgebra", "Optim", "Random", "SpecialFunctions", "Statistics", "Unitful", "UnitfulAstro"]
 path = ".."
 uuid = "3d369fb6-3996-5181-b3f3-8f741c4f9e19"
 version = "0.1.0"
@@ -147,6 +147,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "15abc5f976569a1c9d651aff02f7222ef305eb2a"
 uuid = "781609d7-10c4-51f6-84f2-b8444358ff6d"
 version = "6.1.2+6"
+
+[[GPLinearODEMaker]]
+deps = ["Distributed", "IterativeSolvers", "LinearAlgebra", "Random", "SharedArrays", "SpecialFunctions", "Statistics", "SymEngine"]
+git-tree-sha1 = "03fcdba37c9e3ea28809fdd0232be4cc5b7c6cb5"
+uuid = "27ef9b34-1325-4cec-ba33-00f2f4637873"
+version = "0.1.8"
 
 [[IfElse]]
 git-tree-sha1 = "28e837ff3e7a6c3cdb252ce49fb412c8eb3caeef"
@@ -162,6 +168,12 @@ deps = ["Test"]
 git-tree-sha1 = "15732c475062348b0165684ffe28e85ea8396afc"
 uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
 version = "1.0.0"
+
+[[IterativeSolvers]]
+deps = ["LinearAlgebra", "Printf", "Random", "RecipesBase", "SparseArrays"]
+git-tree-sha1 = "6f5ef3206d9dc6510a8b8e2334b96454a2ade590"
+uuid = "42fd0dbc-a981-5370-80f2-aaf504508153"
+version = "0.9.0"
 
 [[IteratorInterfaceExtensions]]
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
