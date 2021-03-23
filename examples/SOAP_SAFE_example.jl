@@ -30,7 +30,6 @@ using Statistics
 #####################################################################
 
 ## Problem setup
-
 length(ARGS) > 0 ? n_bs = parse(Int, ARGS[1]) : n_bs = 5
 @assert 1 < n_bs < 6
 
@@ -58,15 +57,6 @@ obs_xs = h5open("D:/Christian/Downloads/res-1000-1years_full_id1.h5")["phases"][
 # taking out the mean observation times makes the optimization easier for models
 # with periodic parameters
 GLOM_RV.remove_mean!(obs_xs)
-
-# using Plots
-# plot(data[!, "b1"]; label="b1")
-# plot!(data[!, "t1"]; label="t1")
-# savefig("b1_and_t1.png")
-# plot(data[!, "b1"] ./ data[!, "t1"]; label="b1/t1")
-# savefig("b1_over_t1.png")
-# histogram(data[!, "b1"] ./ data[!, "t1"]; label="b1/t1")
-# savefig("b1_over_t1_hist.png")
 
 # CHANGE: rvs and their errors go here
 obs_rvs = collect(data[!, "b1"])
