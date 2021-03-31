@@ -40,12 +40,16 @@ kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
 kernel_name = kernel_names[kernel_choice]
 kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
+# importing EXPRES data
+stars = ["101501", "10700", "26965", "34411"]
+star_ind = 3
+star_str = stars[star_ind]
+data_dir = "examples/"
+data = CSV.read(data_dir * star_str * "_Yale_Wisconsin_hgrvsafe_results.csv", DataFrame)
+
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
-star_rot_rate = 37  # days
-
-# importing Yale's 101501 data
-data = CSV.read("examples/26965_Yale_Wisconsin_hgrvsafe_results.csv", DataFrame)
+star_rot_rate = [17.1, 34, 37, 22][star_ind]  # days
 
 # CHANGE: observation times go here
 obs_xs = collect(data[!, "BARYMJD"])
