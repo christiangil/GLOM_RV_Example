@@ -25,6 +25,8 @@ using UnitfulAstro, Unitful
 using MultivariateStats
 using Statistics
 
+using Plots
+
 #####################################################################
 # CTRL+F "CHANGE"TO FIND PLACES WHERE YOU SHOULD MAKE MODIFICATIONS #
 #####################################################################
@@ -40,9 +42,9 @@ kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
 kernel_name = kernel_names[kernel_choice]
 kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
-# importing EXPRES data
+# CHANGE: importing EXPRES data
+length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 3
 stars = ["101501", "10700", "26965", "34411"]
-star_ind = 3
 star_str = stars[star_ind]
 data_dir = "examples/"
 data = CSV.read(data_dir * star_str * "_Yale_Wisconsin_hgrvsafe_results.csv", DataFrame)
@@ -59,6 +61,10 @@ obs_xs = obs_xs[sort_inds]
 # taking out the mean observation times makes the optimization easier for models
 # with periodic parameters
 GLOM_RV.remove_mean!(obs_xs)
+
+# CHANGE: Where to save intermediate data products
+save_dir = data_dir * "data/" * star_str * "_"
+fig_dir = data_dir * "figs/" * star_str * "_"
 
 # CHANGE: rvs and their errors go here
 obs_rvs = data[!, "RV"][sort_inds]
@@ -171,27 +177,32 @@ else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
 end
 
-fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM(glo, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
 # fit_GLOM returns a vector of num_kernel_hyperparameters gp hyperparameters
 # followed by the GLOM coefficients and the Optim result object
-workspace = GLOM.nlogL_matrix_workspace(glo, fit1_total_hyperparameters)
+fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM(glo, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
+println(result)
+
+using JLD2
+@save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
+# # need to GLOM.include_kernel(kernel_name) before this will work
+# @load save_dir*"fit1.jld2" glo fit1_total_hyperparameters
 
 ## Plotting initial results
-
-plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, 300))
+plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, maximum([300, Int(round(length(obs_xs) * sqrt(2)))])))
 GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit1_total_hyperparameters)
 
-#=
-using Plots
-plt = scatter(obs_xs, rvs_and_inds[1]; yerror=rvs_and_inds_err[1], label="obs RVs")
-plot!(plt, plot_xs, GLOM_at_plot_xs[1]; ribbons=GLOM_err_at_plot_xs[1], fillalpha=0.3, label="GLOM RVs")
-
-plt = scatter(obs_xs, rvs_and_inds[2]; yerror=rvs_and_inds_err[2], label="obs ind 1")
-plot!(plt, plot_xs, GLOM_at_plot_xs[2]; ribbons=GLOM_err_at_plot_xs[2], fillalpha=0.3, label="GLOM ind 1")
-
-plt = scatter(obs_xs, rvs_and_inds[3]; yerror=rvs_and_inds_err[3], label="obs ind 2")
-plot!(plt, plot_xs, GLOM_at_plot_xs[3]; ribbons=GLOM_err_at_plot_xs[3], fillalpha=0.3, label="GLOM ind 2")
-=#
+function GLOM_plot(fig_loc, plot_xs, obs_xs, feat, err, GLOM_feat, GLOM_err, label, label_GLOM)
+    plt = scatter(obs_xs, feat; yerror=err, label=label)
+    plot!(plt, plot_xs, GLOM_feat; ribbons=GLOM_err, fillalpha=0.3, label=label_GLOM)
+    png(plt, fig_loc)
+end
+function GLOM_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
+    GLOM_plot(fig_dir * name_prefix * "rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs RVs", "GLOM RVs")
+    for i in 2:length(rvs_and_inds)
+        GLOM_plot(fig_dir * name_prefix * "ind$(i-1)", plot_xs, obs_xs, rvs_and_inds[i], rvs_and_inds_err[i], GLOM_at_plot_xs[i], GLOM_err_at_plot_xs[i], "obs ind $(i-1)", "GLOM ind $(i-1)")
+    end
+end
+GLOM_plots("fit1_", plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
 
 ## Finding a planet?
 
@@ -307,9 +318,12 @@ plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
 ####################################################################################################
 remainder(vec, x) = [i > 0 ? i % x : (i % x) + x for i in vec]
 
+# Need to redefine Σ_obs for fit_kep_hold_P()
 Σ_obs = GLOM.Σ_observations(glo, fit1_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; fast=true)
 println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
+
+workspace = GLOM.nlogL_matrix_workspace(glo, fit1_total_hyperparameters)
 
 @time fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
     glo_rv, fit1_total_hyperparameters, kernel_hyper_priors,
@@ -319,6 +333,7 @@ println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
 ####################################################################################################
 
+# Need to redefine Σ_obs for fit_kep_hold_P()
 Σ_obs = GLOM.Σ_observations(glo, fit2_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
