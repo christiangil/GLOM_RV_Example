@@ -294,6 +294,7 @@ likelihoods = zeros(amount_of_periods)
 unnorm_posteriors = zeros(amount_of_periods)
 
 @time if use_distributed
+    # takes around a minute for 26965 data and 3000 periods
     holder = pmap(x->kep_unnormalized_posterior_distributed(x), period_grid, batch_size=Int(floor(amount_of_periods / (nworkers() + 1)) + 1))
     likelihoods[:] = [holder[i][1] for i in 1:length(holder)]
     unnorm_posteriors[:] = [holder[i][2] for i in 1:length(holder)]
@@ -309,9 +310,14 @@ best_period = best_periods[1]
 
 println("found period:    $(ustrip(best_period)) days")
 
-using Plots
 plot(ustrip.(period_grid), likelihoods; xaxis=:log, leg=false)
+png(fig_dir * "period_lik")
 plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
+png(fig_dir * "period_evi")
+
+@save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid
+# # need to using Unitful before this will work
+# @load save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid
 
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ,M0,e-linear, P-fixed) #
