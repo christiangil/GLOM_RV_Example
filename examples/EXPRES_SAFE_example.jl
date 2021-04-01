@@ -315,9 +315,9 @@ png(fig_dir * "period_lik")
 plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
 png(fig_dir * "period_evi")
 
-@save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid
+@save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
 # # need to using Unitful before this will work
-# @load save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid
+# @load save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
 
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ,M0,e-linear, P-fixed) #
