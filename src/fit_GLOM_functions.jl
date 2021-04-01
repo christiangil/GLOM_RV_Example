@@ -316,3 +316,11 @@ function fit_GLOM_and_kep!(
     return fit_total_hyperparameters, current_ks
 
 end
+fit_GLOM_and_kep(glo_rv::GLO_RV,
+    init_total_hyper::Vector{<:Real},
+    kernel_hyper_priors::Function,
+    add_kick!::Function,
+    current_ks::KeplerSignal;
+    kwargs...) = fit_GLOM_and_kep!(
+        GLOM.nlogL_matrix_workspace(glo_rv.GLO, init_total_hyper), glo_rv,
+        init_total_hyper, kernel_hyper_priors, add_kick!, current_ks; kwargs...)

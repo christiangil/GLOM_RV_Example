@@ -927,6 +927,12 @@ function remove_kepler(
 
 end
 remove_kepler(
+    data::Vector{<:Unitful.Velocity},
+    times::Vector{T2} where T2<:Unitful.Time,
+    ks::KeplerSignal;
+    kwargs...) =
+    remove_kepler(ustrip.(data), times, ks; data_unit=1.0*unit(data[1]), kwargs...)
+remove_kepler(
     glo_rv::GLO_RV,
     ks::KeplerSignal;
     kwargs...) =
