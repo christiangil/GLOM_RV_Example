@@ -196,7 +196,7 @@ function GLOM_plot(fig_loc, plot_xs, obs_xs, feat, err, GLOM_feat, GLOM_err, lab
     png(plt, fig_loc)
 end
 function GLOM_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
-    GLOM_plot(fig_dir * name_prefix * "_rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs RVs", "GLOM RVs")
+    GLOM_plot(fig_dir * name_prefix * "rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs RVs", "GLOM RVs")
     for i in 2:length(rvs_and_inds)
         GLOM_plot(fig_dir * name_prefix * "ind$(i-1)", plot_xs, obs_xs, rvs_and_inds[i], rvs_and_inds_err[i], GLOM_at_plot_xs[i], GLOM_err_at_plot_xs[i], "obs ind $(i-1)", "GLOM ind $(i-1)")
     end
@@ -408,7 +408,7 @@ println(uE1, "\n")
 
 println("kepler hyperparameters")
 println(fit4_total_hyperparameters)
-fit_nlogL2 = GLOM.nlogL_GLOM!(workspace, glo, fit4_total_hyperparameters; y_obs=GLOM_RV.remove_kepler(glo_rv, full_ks))
+fit_nlogL2 = GLOM.nlogL_GLOM(glo, fit4_total_hyperparameters; y_obs=GLOM_RV.remove_kepler(glo_rv, full_ks))
 uE2 = -fit_nlogL2 - nlogprior_hyperparameters(fit4_total_hyperparameters, 0) + GLOM_RV.logprior_kepler(full_ks; use_hk=true)
 println(uE2, "\n")
 
@@ -433,7 +433,7 @@ println(uE1, "\n")
 
 println("fit after planet hyperparameters")
 println(fit1_total_hyperparameters_temp)
-fit_nlogL1_temp = GLOM.nlogL_GLOM!(workspace, glo, fit1_total_hyperparameters_temp)
+fit_nlogL1_temp = GLOM.nlogL_GLOM(glo, fit1_total_hyperparameters_temp)
 uE1_temp = -fit_nlogL1_temp - nlogprior_hyperparameters(fit1_total_hyperparameters_temp, 0)
 println(uE1_temp, "\n")
 
@@ -465,7 +465,7 @@ catch err
 end
 
 # planet
-H2 = Matrix(GLOM_RV.∇∇nlogL_GLOM_and_planet!(workspace, glo_rv, fit4_total_hyperparameters, full_ks; include_kepler_priors=true))
+H2 = Matrix(GLOM_RV.∇∇nlogL_GLOM_and_planet(glo_rv, fit4_total_hyperparameters, full_ks; include_kepler_priors=true))
 n_hyper = length(GLOM.remove_zeros(fit4_total_hyperparameters))
 H2[1:n_hyper, 1:n_hyper] += nlogprior_hyperparameters(GLOM.remove_zeros(fit4_total_hyperparameters), 2)
 try

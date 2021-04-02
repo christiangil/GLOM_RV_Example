@@ -1019,7 +1019,10 @@ function ∇∇nlogL_GLOM_and_planet!(
 
     return Symmetric(full_H)
 end
-
+∇∇nlogL_GLOM_and_planet(glo_rv, total_hyperparameters, ks; kwargs...) =
+    ∇∇nlogL_GLOM_and_planet(
+        GLOM.nlogL_matrix_workspace(glo_rv.GLO, total_hyperparameters),
+        glo_rv, total_hyperparameters, ks; kwargs...)
 
 function validate_kepler_dorder(d::Vector{<:Integer})
 	@assert sum(d) < 3
