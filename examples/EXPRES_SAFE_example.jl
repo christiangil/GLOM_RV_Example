@@ -189,7 +189,6 @@ using JLD2
 
 ## Plotting initial results
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, maximum([300, Int(round(length(obs_xs) * sqrt(2)))])))
-GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit1_total_hyperparameters)
 
 function GLOM_plot(fig_loc, plot_xs, obs_xs, feat, err, GLOM_feat, GLOM_err, label, label_GLOM)
     plt = scatter(obs_xs, feat; yerror=err, label=label)
@@ -197,12 +196,27 @@ function GLOM_plot(fig_loc, plot_xs, obs_xs, feat, err, GLOM_feat, GLOM_err, lab
     png(plt, fig_loc)
 end
 function GLOM_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
-    GLOM_plot(fig_dir * name_prefix * "rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs RVs", "GLOM RVs")
+    GLOM_plot(fig_dir * name_prefix * "_rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs RVs", "GLOM RVs")
     for i in 2:length(rvs_and_inds)
         GLOM_plot(fig_dir * name_prefix * "ind$(i-1)", plot_xs, obs_xs, rvs_and_inds[i], rvs_and_inds_err[i], GLOM_at_plot_xs[i], GLOM_err_at_plot_xs[i], "obs ind $(i-1)", "GLOM ind $(i-1)")
     end
 end
-GLOM_plots("fit1_", plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
+function plot_helper(prefix::String, ks::GLOM_RV.KeplerSignal, fit_total_hyperparameters)
+    GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit_total_hyperparameters; y_obs = GLOM_RV.remove_kepler(glo_rv, current_ks))
+    rvs_and_inds_np = copy(rvs_and_inds)
+    rvs_and_inds_np[1] = GLOM_RV.remove_kepler(GLOM_RV.get_rv(glo_rv), glo_rv.time, current_ks)
+    GLOM_plots(prefix, plot_xs, obs_xs, rvs_and_inds_np, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
+    plot_kep_xs = collect(LinRange(0, ustrip(best_period), 1000))
+    scatter(remainder(glo.x_obs, ustrip(best_period)), ustrip.(GLOM_RV.get_rv(glo_rv)); yerror=ustrip.(GLOM_RV.get_rv_noise(glo_rv)), label="data")
+    plot!(plot_kep_xs, ustrip.(current_ks.(plot_kep_xs.*u"d")); label="kep")
+    png(fig_dir * prefix * "rv_phase")
+end
+function plot_helper(prefix::String, fit_total_hyperparameters)
+    GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit_total_hyperparameters)
+    GLOM_plots(prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
+end
+
+plot_helper("fit1_", fit1_total_hyperparameters)
 
 ## Finding a planet?
 
@@ -329,12 +343,15 @@ remainder(vec, x) = [i > 0 ? i % x : (i % x) + x for i in vec]
 current_ks = fit_kep_hold_P(best_period; fast=true)
 println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-workspace = GLOM.nlogL_matrix_workspace(glo, fit1_total_hyperparameters)
+@time fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
+    fit1_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks)
 
-@time fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
-    glo_rv, fit1_total_hyperparameters, kernel_hyper_priors,
-    add_kick!, current_ks)
+@save save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
+# # need to using Unitful before this will work
+# @load save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
+# glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
 
+plot_helper("fit2_", current_ks, fit2_total_hyperparameters)
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
 ####################################################################################################
@@ -344,16 +361,18 @@ workspace = GLOM.nlogL_matrix_workspace(glo, fit1_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
+glo_rv
 # 400s
-@time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
-    glo_rv, fit2_total_hyperparameters, kernel_hyper_priors,
-    add_kick!, current_ks; avoid_saddle=false, fit_alpha=1e-3)
+@time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
+    fit2_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
+    avoid_saddle=false, fit_alpha=1e-3)
 
-#=
-plot_kep_xs = collect(LinRange(0, ustrip(best_period), 1000))
-scatter(remainder(glo.x_obs, ustrip(best_period)), ustrip.(GLOM_RV.get_rv(glo_rv)); yerror=ustrip.(GLOM_RV.get_rv_noise(glo_rv)), label="data")
-plot!(plot_kep_xs, ustrip.(current_ks.(plot_kep_xs.*u"d")); label="kep")
-=#
+@save save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
+# # need to using Unitful before this will work
+# @load save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
+# glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+
+plot_helper("fit3_", current_ks, fit3_total_hyperparameters)
 
 # # these should be near 0
 # GLOM_RV.test_∇nlogL_kep(glo_rv, workspace.Σ_obs, current_ks; include_priors=true)
@@ -364,9 +383,16 @@ plot!(plot_kep_xs, ustrip.(current_ks.(plot_kep_xs.*u"d")); label="kep")
 # 200s
 current_ks = GLOM_RV.kep_signal(current_ks)
 println("\nbefore full fit: ", GLOM_RV.kep_parms_str(current_ks))
-@time fit4_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep!(workspace,
-    glo_rv, fit3_total_hyperparameters, kernel_hyper_priors,
-    add_kick!, current_ks; avoid_saddle=true)
+@time fit4_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
+    fit3_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
+    avoid_saddle=true)
+
+@save save_dir*"fit4.jld2" glo fit4_total_hyperparameters current_ks
+# # need to using Unitful before this will work
+# @load save_dir*"fit4.jld2" glo fit3_total_hyperparameters current_ks
+# glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+
+plot_helper("fit4_", current_ks, fit4_total_hyperparameters)
 
 full_ks = GLOM_RV.kep_signal(current_ks)
 
