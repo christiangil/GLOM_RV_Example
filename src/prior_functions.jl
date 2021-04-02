@@ -30,7 +30,8 @@ function logprior_K(K::Unitful.Velocity; d::Integer=0, P::Unitful.Time=character
 end
 
 function logprior_P(P::Unitful.Time; d::Integer=0)
-    return GLOM.log_loguniform(convert_and_strip_units(u"d", P), [prior_P_min, prior_P_max]; d=d)
+    # return GLOM.log_loguniform(convert_and_strip_units(u"d", P), [prior_P_min, prior_P_max]; d=d)
+    return GLOM.log_uniform(convert_and_strip_units(u"d", P); min_max=[prior_P_min, prior_P_max], d=d)
 end
 
 function logprior_M0(M0::Real; d::Integer=0)
