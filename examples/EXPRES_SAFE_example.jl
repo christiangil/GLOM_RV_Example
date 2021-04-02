@@ -443,6 +443,7 @@ if uE1_temp > uE1
     fit1_total_hyperparameters[:] = fit1_total_hyperparameters_temp
     fit_nlogL1 = fit_nlogL1_temp
     uE1 = uE1_temp
+    @save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
 end
 
 ##########################
