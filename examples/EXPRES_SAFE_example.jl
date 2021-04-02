@@ -361,7 +361,6 @@ plot_helper("fit2_", current_ks, fit2_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-glo_rv
 # 400s
 @time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
     fit2_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
