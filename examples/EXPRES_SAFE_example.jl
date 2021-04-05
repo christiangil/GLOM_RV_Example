@@ -26,6 +26,7 @@ using MultivariateStats
 using Statistics
 
 using Plots
+using JLD2
 
 #####################################################################
 # CTRL+F "CHANGE"TO FIND PLACES WHERE YOU SHOULD MAKE MODIFICATIONS #
@@ -72,6 +73,9 @@ obs_rvs = data[!, "RV"][sort_inds]
 # obs_rvs[:] .+= ustrip.(inject_ks.(obs_xs.*u"d"))
 GLOM_RV.remove_mean!(obs_rvs)
 obs_rvs_err = data[!, "RV_std"][sort_inds]
+
+# CHANGE: whether to use saved values if they exist
+use_saved = true
 
 ## PCA for indicators
 
@@ -177,15 +181,17 @@ else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
 end
 
-# fit_GLOM returns a vector of num_kernel_hyperparameters gp hyperparameters
-# followed by the GLOM coefficients and the Optim result object
-fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM(glo, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
-println(result)
+if isfile(save_dir*"fit1.jld2") && use_saved
+    # GLOM.include_kernel(kernel_name)
+    @load save_dir*"fit1.jld2" glo fit1_total_hyperparameters
+else
+    # fit_GLOM returns a vector of num_kernel_hyperparameters gp hyperparameters
+    # followed by the GLOM coefficients and the Optim result object
+    fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM(glo, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
+    println(result)
 
-using JLD2
-@save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
-# # need to GLOM.include_kernel(kernel_name) before this will work
-# @load save_dir*"fit1.jld2" glo fit1_total_hyperparameters
+    @save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
+end
 
 ## Plotting initial results
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, maximum([300, Int(round(length(obs_xs) * sqrt(2)))])))
@@ -304,34 +310,38 @@ end
 end
 @everywhere kep_unnormalized_posterior_distributed(P::Unitful.Time) = kep_unnormalized_posterior_distributed(P; fast=!full_fit)
 
-likelihoods = zeros(amount_of_periods)
-unnorm_posteriors = zeros(amount_of_periods)
 
-@time if use_distributed
-    # takes around a minute for 26965 data and 3000 periods
-    holder = pmap(x->kep_unnormalized_posterior_distributed(x), period_grid, batch_size=Int(floor(amount_of_periods / (nworkers() + 1)) + 1))
-    likelihoods[:] = [holder[i][1] for i in 1:length(holder)]
-    unnorm_posteriors[:] = [holder[i][2] for i in 1:length(holder)]
+if isfile(save_dir*"period.jld2") && use_saved
+    # need to using Unitful before this will work
+    @load save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
 else
-    # takes around minutes for 101501 data and 3000 periods
-    for i in 1:amount_of_periods
-        likelihoods[i], unnorm_posteriors[i] = kep_unnormalized_posterior_distributed(period_grid[i])
+    likelihoods = zeros(amount_of_periods)
+    unnorm_posteriors = zeros(amount_of_periods)
+
+    @time if use_distributed
+        # takes around a minute for 26965 data and 3000 periods
+        holder = pmap(x->kep_unnormalized_posterior_distributed(x), period_grid, batch_size=Int(floor(amount_of_periods / (nworkers() + 1)) + 1))
+        likelihoods[:] = [holder[i][1] for i in 1:length(holder)]
+        unnorm_posteriors[:] = [holder[i][2] for i in 1:length(holder)]
+    else
+        # takes around minutes for 101501 data and 3000 periods
+        for i in 1:amount_of_periods
+            likelihoods[i], unnorm_posteriors[i] = kep_unnormalized_posterior_distributed(period_grid[i])
+        end
     end
+
+    best_periods = period_grid[GLOM_RV.find_modes(unnorm_posteriors; amount=10)]
+    best_period = best_periods[1]
+
+    println("found period:    $(ustrip(best_period)) days")
+
+    @save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
 end
-
-best_periods = period_grid[GLOM_RV.find_modes(unnorm_posteriors; amount=10)]
-best_period = best_periods[1]
-
-println("found period:    $(ustrip(best_period)) days")
 
 plot(ustrip.(period_grid), likelihoods; xaxis=:log, leg=false)
 png(fig_dir * "period_lik")
 plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
 png(fig_dir * "period_evi")
-
-@save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
-# # need to using Unitful before this will work
-# @load save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
 
 ####################################################################################################
 # Refitting GP with full planet signal at found period subtracted (K,ω,γ,M0,e-linear, P-fixed) #
@@ -343,13 +353,15 @@ remainder(vec, x) = [i > 0 ? i % x : (i % x) + x for i in vec]
 current_ks = fit_kep_hold_P(best_period; fast=true)
 println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-@time fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
+if isfile(save_dir*"fit2.jld2") && use_saved
+    @load save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
+    glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+else
+    @time fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
     fit1_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks)
 
-@save save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
-# # need to using Unitful before this will work
-# @load save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
-# glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+    @save save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
+end
 
 plot_helper("fit2_", current_ks, fit2_total_hyperparameters)
 ####################################################################################################
@@ -361,15 +373,17 @@ plot_helper("fit2_", current_ks, fit2_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-# 400s
-@time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
+if isfile(save_dir*"fit3.jld2") && use_saved
+    @load save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
+    glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+else
+    # 400s
+    @time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
     fit2_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
     avoid_saddle=false, fit_alpha=1e-3)
 
-@save save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
-# # need to using Unitful before this will work
-# @load save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
-# glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+    @save save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
+end
 
 plot_helper("fit3_", current_ks, fit3_total_hyperparameters)
 
@@ -379,17 +393,19 @@ plot_helper("fit3_", current_ks, fit3_total_hyperparameters)
 # Refitting GP with full planet signal at found period subtracted (K,P,M0,e,ω,γ-nonlinear)#
 ###########################################################################################
 
-# 200s
-current_ks = GLOM_RV.kep_signal(current_ks)
-println("\nbefore full fit: ", GLOM_RV.kep_parms_str(current_ks))
-@time fit4_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
+if isfile(save_dir*"fit4.jld2") && use_saved
+    @load save_dir*"fit4.jld2" glo fit4_total_hyperparameters current_ks
+    glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+else
+    # 200s
+    current_ks = GLOM_RV.kep_signal(current_ks)
+    println("\nbefore full fit: ", GLOM_RV.kep_parms_str(current_ks))
+    @time fit4_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
     fit3_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
     avoid_saddle=true)
 
-@save save_dir*"fit4.jld2" glo fit4_total_hyperparameters current_ks
-# # need to using Unitful before this will work
-# @load save_dir*"fit4.jld2" glo fit3_total_hyperparameters current_ks
-# glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
+    @save save_dir*"fit4.jld2" glo fit4_total_hyperparameters current_ks
+end
 
 plot_helper("fit4_", current_ks, fit4_total_hyperparameters)
 
@@ -418,33 +434,33 @@ println(GLOM_RV.kep_parms_str(full_ks))
 ##################################################################################
 # refitting noise model to see if a better model was found during planet fitting #
 ##################################################################################
+if !(isfile(save_dir*"fit1.jld2") && use_saved)
+    fit1_total_hyperparameters_temp, result = GLOM_RV.fit_GLOM(
+        glo,
+        fit4_total_hyperparameters,
+        kernel_hyper_priors,
+        add_kick!)
 
-fit1_total_hyperparameters_temp, result = GLOM_RV.fit_GLOM(
-    glo,
-    fit4_total_hyperparameters,
-    kernel_hyper_priors,
-    add_kick!)
+    println(result)
 
-println(result)
+    println("first fit hyperparameters")
+    println(fit1_total_hyperparameters)
+    println(uE1, "\n")
 
-println("first fit hyperparameters")
-println(fit1_total_hyperparameters)
-println(uE1, "\n")
+    println("fit after planet hyperparameters")
+    println(fit1_total_hyperparameters_temp)
+    fit_nlogL1_temp = GLOM.nlogL_GLOM(glo, fit1_total_hyperparameters_temp)
+    uE1_temp = -fit_nlogL1_temp - nlogprior_hyperparameters(fit1_total_hyperparameters_temp, 0)
+    println(uE1_temp, "\n")
 
-println("fit after planet hyperparameters")
-println(fit1_total_hyperparameters_temp)
-fit_nlogL1_temp = GLOM.nlogL_GLOM(glo, fit1_total_hyperparameters_temp)
-uE1_temp = -fit_nlogL1_temp - nlogprior_hyperparameters(fit1_total_hyperparameters_temp, 0)
-println(uE1_temp, "\n")
-
-if uE1_temp > uE1
-    println("new fit is better, switching hps")
-    fit1_total_hyperparameters[:] = fit1_total_hyperparameters_temp
-    fit_nlogL1 = fit_nlogL1_temp
-    uE1 = uE1_temp
-    @save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
+    if uE1_temp > uE1
+        println("new fit is better, switching hps")
+        fit1_total_hyperparameters[:] = fit1_total_hyperparameters_temp
+        fit_nlogL1 = fit_nlogL1_temp
+        uE1 = uE1_temp
+        @save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
+    end
 end
-
 ##########################
 # Evidence approximation #
 ##########################
