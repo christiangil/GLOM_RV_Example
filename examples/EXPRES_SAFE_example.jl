@@ -207,7 +207,7 @@ function plot_helper(prefix::String, ks::GLOM_RV.KeplerSignal, fit_total_hyperpa
     rvs_and_inds_np[1] = GLOM_RV.remove_kepler(GLOM_RV.get_rv(glo_rv), glo_rv.time, current_ks)
     GLOM_plots(prefix, plot_xs, obs_xs, rvs_and_inds_np, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
     plot_kep_xs = collect(LinRange(0, ustrip(best_period), 1000))
-    scatter(remainder(glo.x_obs, ustrip(best_period)), ustrip.(GLOM_RV.get_rv(glo_rv)); yerror=ustrip.(GLOM_RV.get_rv_noise(glo_rv)), label="data")
+    scatter(remainder(glo.x_obs, ustrip(best_period)), ustrip.(GLOM_RV.get_rv(glo_rv)) - GLOM_at_obs_xs[1]; yerror=ustrip.(GLOM_RV.get_rv_noise(glo_rv)), label="data")
     plot!(plot_kep_xs, ustrip.(current_ks.(plot_kep_xs.*u"d")); label="kep")
     png(fig_dir * prefix * "rv_phase")
 end
