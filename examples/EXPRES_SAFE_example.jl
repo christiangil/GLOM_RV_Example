@@ -37,7 +37,7 @@ length(ARGS) > 0 ? n_bs = parse(Int, ARGS[1]) : n_bs = 5
 @assert 1 < n_bs < 6
 
 # CHANGE: importing EXPRES data
-length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 3
+length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 2
 stars = ["101501", "10700", "26965", "34411"]
 star_str = stars[star_ind]
 data_dir = "examples/"
@@ -45,14 +45,14 @@ data = CSV.read(data_dir * star_str * "_Yale_Wisconsin_hgrvsafe_results.csv", Da
 
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
-initial_hypers = [17.1, [0.0069, 34], 37, 22][star_ind]  # days
+initial_hypers = [17.1, [0.0069, 34, 1], 37, 22][star_ind]  # days
 
 # CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
 # kernel
 if length(initial_hypers) == 1
     # kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
     kernel_name = "m52"
-elseif length(initial_hypers) == 2
+elseif length(initial_hypers) == 3
     kernel_name = "m52_m52"
 end
 kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
@@ -82,33 +82,44 @@ use_saved = true
 
 ## PCA for indicators
 
+use_PCA = false
+use_PPCA = false
+
 find_data_col_ind(col_name) = findfirst(x -> x==col_name, names(data))
-b_inds = find_data_col_ind("b0"):(find_data_col_ind("b0") + n_bs - 1)
-t_inds = find_data_col_ind("t0") - find_data_col_ind("b0") .+ b_inds
 
-Xte = Matrix(data[!, b_inds])'[:, sort_inds]
+if use_PCA || use_PPCA
+    b_inds = find_data_col_ind("b0"):(find_data_col_ind("b0") + n_bs - 1)
+    t_inds = find_data_col_ind("t0") - find_data_col_ind("b0") .+ b_inds
+    Xte = Matrix(data[!, b_inds])'[:, sort_inds]
 
-# #PPCA version
-# M = fit(PPCA, Xte; maxoutdim=2)
-# # modifed from transform() at from https://github.com/JuliaStats/MultivariateStats.jl/blob/master/src/ppca.jl
-# function transforming_mat(m::PPCA{T}) where {T<:Real}
-#     W  = m.W
-#     n = outdim(m)
-#     M = W'W .+ m.σ² * Matrix{T}(I, n, n)
-#     return inv(M)*m.W'
-# end
-# Z = transforming_mat(M)
-
-# PCA version
-M = fit(PCA, Xte; maxoutdim=2)
-Z = M.proj'
-println("Z: ", Z)
-
-z = MultivariateStats.transform(M, Xte)  # = Z * (Xte .- M.mean)
-var_β = ((Matrix(data[!, b_inds])[sort_inds, :] ./ Matrix(data[!, t_inds][sort_inds, :]))').^2
-σ_z = zeros(size(z))
-for i in 1:size(z, 2)
-    σ_z[:, i] = sqrt.(diag(Z * Diagonal(var_β[:, 1]) * Z'))
+    if use_PPCA
+        #PPCA version
+        M = fit(PPCA, Xte; maxoutdim=2)
+        # modifed from transform() at from https://github.com/JuliaStats/MultivariateStats.jl/blob/master/src/ppca.jl
+        function transforming_mat(m::PPCA{T}) where {T<:Real}
+            W  = m.W
+            n = outdim(m)
+            M = W'W .+ m.σ² * Matrix{T}(I, n, n)
+            return inv(M)*m.W'
+        end
+        Z = transforming_mat(M)
+    elseif use_PCA
+        # PCA version
+        M = fit(PCA, Xte; maxoutdim=2)
+        Z = M.proj'
+    end
+    println("Z: ", Z)
+    z = MultivariateStats.transform(M, Xte)  # = Z * (Xte .- M.mean)
+    var_β = ((Matrix(data[!, b_inds])[sort_inds, :] ./ Matrix(data[!, t_inds][sort_inds, :]))').^2
+    σ_z = zeros(size(z))
+    for i in 1:size(z, 2)
+        σ_z[:, i] = sqrt.(diag(Z * Diagonal(var_β[:, 1]) * Z'))
+    end
+else
+    b_inds = find_data_col_ind("b2"):find_data_col_ind("b3")
+    t_inds = find_data_col_ind("t2"):find_data_col_ind("t3")
+    z = Matrix(data[!, b_inds])'[:, sort_inds]
+    σ_z = z ./ Matrix(data[!, t_inds])'[:, sort_inds]
 end
 
 ## Adding indicators
@@ -166,24 +177,24 @@ append!(initial_total_hyperparameters, initial_hypers)
 
 # CHANGE: Setting kernel hyperparameter priors and kick function
 # kick functions help avoid saddle points
-tighten_lengthscale_priors = 4
+tighten_lengthscale_priors = 6
 if kernel_name in ["pp", "se", "m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
         GLOM_RV.kernel_hyper_priors_1λ(hps, d, initial_hypers, initial_hypers / tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_1λ!(hps)
 elseif kernel_name == "qp"
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_qp(hps, d, [initial_hypers[1], initial_hypers[2], 1.], [initial_hypers[1], initial_hypers[2], 0.4] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_qp(hps, d, initial_hypers, initial_hypers ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_qp!(hps)
 elseif kernel_name in ["se_se", "m52_m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [initial_hypers[1], initial_hypers[2], 1.], [initial_hypers[1], initial_hypers[2], 1.] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_2λ(hps, d, initial_hypers, initial_hypers ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_2λ!(hps)
 else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
 end
 
-if isfile(save_dir*"fit1.jld2") && use_saved
+if use_saved && isfile(save_dir*"fit1.jld2")
     # GLOM.include_kernel(kernel_name)
     @load save_dir*"fit1.jld2" glo fit1_total_hyperparameters
 else
@@ -289,7 +300,7 @@ end
 @everywhere kep_unnormalized_posterior_distributed(P::Unitful.Time) = kep_unnormalized_posterior_distributed(P; fast=!full_fit)
 
 
-if isfile(save_dir*"period.jld2") && use_saved
+if use_saved && isfile(save_dir*"period.jld2")
     # need to using Unitful before this will work
     @load save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
 else
@@ -331,7 +342,7 @@ remainder(vec, x) = [i > 0 ? i % x : (i % x) + x for i in vec]
 current_ks = fit_kep_hold_P(best_period; fast=true)
 println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-if isfile(save_dir*"fit2.jld2") && use_saved
+if use_saved && isfile(save_dir*"fit2.jld2")
     @load save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
     glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
 else
@@ -351,7 +362,7 @@ plot_helper("fit2_", current_ks, fit2_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
-if isfile(save_dir*"fit3.jld2") && use_saved
+if use_saved && isfile(save_dir*"fit3.jld2")
     @load save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
     glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
 else
@@ -371,7 +382,7 @@ plot_helper("fit3_", current_ks, fit3_total_hyperparameters)
 # Refitting GP with full planet signal at found period subtracted (K,P,M0,e,ω,γ-nonlinear)#
 ###########################################################################################
 
-if isfile(save_dir*"fit4.jld2") && use_saved
+if use_saved && isfile(save_dir*"fit4.jld2")
     @load save_dir*"fit4.jld2" glo fit4_total_hyperparameters current_ks
     glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
 else
@@ -412,7 +423,7 @@ println(GLOM_RV.kep_parms_str(full_ks))
 ##################################################################################
 # refitting noise model to see if a better model was found during planet fitting #
 ##################################################################################
-if !(isfile(save_dir*"fit1.jld2") && use_saved)
+if !(use_saved && isfile(save_dir*"fit1.jld2"))
     fit1_total_hyperparameters_temp, result = GLOM_RV.fit_GLOM(
         glo,
         fit4_total_hyperparameters,
