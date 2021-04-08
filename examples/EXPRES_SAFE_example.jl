@@ -51,9 +51,9 @@ initial_hypers = [17.1, [0.0069, 34], 37, 22][star_ind]  # days
 # kernel
 if length(initial_hypers) == 1
     # kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
-    kernel_names = "m52"
+    kernel_name = "m52"
 elseif length(initial_hypers) == 2
-    kernel_names = "m52_m52"
+    kernel_name = "m52_m52"
 end
 kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
