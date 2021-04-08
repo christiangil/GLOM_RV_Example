@@ -23,7 +23,7 @@ end
 # hyperparameter priors for kernels with two lengthscales i.e. se_se, m52_m52
 function kernel_hyper_priors_2λ(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
     @assert length(μs) == length(σs) == length(hps)
-    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_gamma(hps[2], GLOM.gamma_mode_std_to_α_θ(μs[2], σs[2]); d=d), log_gaussian(hps[3], [μs[3], σs[3]]; d=d)]
+    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_gamma(hps[2], GLOM.gamma_mode_std_to_α_θ(μs[2], σs[2]); d=d), GLOM.log_gaussian(hps[3], [μs[3], σs[3]]; d=d)]
     if d==0; return sum(priors) end
     if d==1; return priors end
     if d==2; return Diagonal(priors) end
@@ -49,7 +49,7 @@ function kernel_hyper_priors_qp(hps::Vector{<:Real}, d::Integer, μs::Vector{T},
     if d == 0
         return GLOM.log_bvnormal(hps[1:2], Σ_qp_prior; μ=μ_qp_prior, lows=[0,0.]) + GLOM.log_gamma(hps[3], paramsλp)
     elseif d == 1
-        return [GLOM.log_bvnormal(hps[1:2], Σ_qp_prior; μ=μ_qp_prior, lows=[0,0.], d=[1,0]), GLOM.log_bvnormal(hps[1:2], Σ_qp_prior; μ=μ_qp_prior, lows=[0,0.], d=[0,1]), log_gamma(hps[3], paramsλp; d=d)]
+        return [GLOM.log_bvnormal(hps[1:2], Σ_qp_prior; μ=μ_qp_prior, lows=[0,0.], d=[1,0]), GLOM.log_bvnormal(hps[1:2], Σ_qp_prior; μ=μ_qp_prior, lows=[0,0.], d=[0,1]),  GLOM.log_gamma(hps[3], paramsλp; d=d)]
     elseif d == 2
         H = zeros(3, 3)
         H[1,1] = GLOM.log_bvnormal(hps[1:2], Σ_qp_prior; μ=μ_qp_prior, lows=[0,0.], d=[2,0])
