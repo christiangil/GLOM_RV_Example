@@ -14,8 +14,7 @@ function GLOM_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err
 end
 function GLOM_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs, rvs_np)
     GLOM_plot(fig_dir * name_prefix * "rv_nokep", plot_xs, obs_xs, rvs_np, rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs-Kep RVs", "GLOM RVs")
-    GLOM_at_plot_xs[1] += ustrip.(current_ks.(plot_xs.*u"d"))
-    GLOM_plot(fig_dir * name_prefix * "rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1], GLOM_err_at_plot_xs[1], "obs RVs", "GLOM+Kep RVs")
+    GLOM_plot(fig_dir * name_prefix * "rv", plot_xs, obs_xs, rvs_and_inds[1], rvs_and_inds_err[1], GLOM_at_plot_xs[1] + ustrip.(current_ks.(plot_xs.*u"d")), GLOM_err_at_plot_xs[1], "obs RVs", "GLOM+Kep RVs")
     GLOM_ind_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
 end
 function plot_helper(prefix::String, ks::GLOM_RV.KeplerSignal, fit_total_hyperparameters)
