@@ -36,13 +36,6 @@ using JLD2
 length(ARGS) > 0 ? n_bs = parse(Int, ARGS[1]) : n_bs = 5
 @assert 1 < n_bs < 6
 
-# CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
-# kernel
-kernel_choice = 3
-kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
-kernel_name = kernel_names[kernel_choice]
-kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
-
 # CHANGE: importing EXPRES data
 length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 3
 stars = ["101501", "10700", "26965", "34411"]
@@ -52,7 +45,17 @@ data = CSV.read(data_dir * star_str * "_Yale_Wisconsin_hgrvsafe_results.csv", Da
 
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
-star_rot_rate = [17.1, 34, 37, 22][star_ind]  # days
+initial_hypers = [17.1, [0.0069, 34], 37, 22][star_ind]  # days
+
+# CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
+# kernel
+if length(initial_hypers) == 1
+    # kernel_names = ["pp", "se", "m52", "qp", "m52_m52", "se_se"]
+    kernel_names = "m52"
+elseif length(initial_hypers) == 2
+    kernel_names = "m52_m52"
+end
+kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
 # CHANGE: observation times go here
 obs_xs = collect(data[!, "BARYMJD"])
@@ -157,25 +160,24 @@ GLOM.normalize_GLO!(glo)
 
 # CHANGE: Setting initial fit values
 initial_total_hyperparameters = collect(Iterators.flatten(glo.a))
-initial_hypers = [[star_rot_rate], [star_rot_rate], [star_rot_rate], [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate, 2 * star_rot_rate, 1], [star_rot_rate, 2 * star_rot_rate, 1]]
-append!(initial_total_hyperparameters, initial_hypers[kernel_choice])
+append!(initial_total_hyperparameters, initial_hypers)
 
 ## Fitting GLOM Model
 
 # CHANGE: Setting kernel hyperparameter priors and kick function
 # kick functions help avoid saddle points
-tighten_lengthscale_priors = 3
+tighten_lengthscale_priors = 4
 if kernel_name in ["pp", "se", "m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_1λ(hps, d, star_rot_rate, star_rot_rate / 2 / tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_1λ(hps, d, initial_hypers, initial_hypers / tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_1λ!(hps)
 elseif kernel_name == "qp"
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_qp(hps, d, [star_rot_rate, 2 * star_rot_rate, 1.], [star_rot_rate / 2, star_rot_rate / 2, 0.4] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_qp(hps, d, [initial_hypers[1], initial_hypers[2], 1.], [initial_hypers[1], initial_hypers[2], 0.4] ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_qp!(hps)
 elseif kernel_name in ["se_se", "m52_m52"]
     kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [star_rot_rate, 2 * star_rot_rate, 1.], [star_rot_rate / 2, star_rot_rate / 2, 1.] ./ tighten_lengthscale_priors)
+        GLOM_RV.kernel_hyper_priors_2λ(hps, d, [initial_hypers[1], initial_hypers[2], 1.], [initial_hypers[1], initial_hypers[2], 1.] ./ tighten_lengthscale_priors)
     add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_2λ!(hps)
 else
     # kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) = custom function
