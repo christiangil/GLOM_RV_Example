@@ -89,9 +89,9 @@ function find_modes(data::Vector{T}; amount::Integer=3) where {T<:Real}
 
 end
 
-centered_rand(; rng::AbstractRNG=Random.GLOBAL_RNG, center::Real=0, scale::Real=1) = centered_rand(rng; center=center, scale=scale)
+centered_rand(; rng::AbstractRNG=Random.GLOBAL_RNG, kwargs...) = centered_rand(rng; kwargs...)
 centered_rand(rng::AbstractRNG; center::Real=0, scale::Real=1) = (scale * (rand(rng) - 0.5)) + center
-centered_rand(d::Integer; rng::AbstractRNG=Random.GLOBAL_RNG, center::Real=0, scale::Real=1) = centered_rand(rng, d; center=center, scale=scale)
+centered_rand(d::Integer; rng::AbstractRNG=Random.GLOBAL_RNG, kwargs...) = centered_rand(rng, d; kwargs...)
 centered_rand(rng::AbstractRNG, d; center::Real=0, scale::Real=1) = (scale .* (rand(rng, d) .- 0.5)) .+ center
 
 function remove_mean!(vec::AbstractVector)

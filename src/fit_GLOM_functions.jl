@@ -16,7 +16,7 @@ function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Real, σ::
 end
 function add_kick_1λ!(hps::Vector{<:Real})
     @assert length(hps) == 1
-    hps .*= centered_rand(rng, length(hps); center=1, scale=0.5)
+    hps .*= centered_rand(length(hps); center=1, scale=0.5)
     return hps
 end
 
@@ -35,9 +35,9 @@ function add_kick_2λ!(hps::Vector{<:Real})
         hps[3] = 1 / hps[3]
         hp[1], hp[2] = hp[2], hp[1]
     end
-    hps[1] *= centered_rand(rng; center=0.8, scale=0.4)
-    hps[2] *= centered_rand(rng; center=1.2, scale=0.4)
-    hps[3] *= centered_rand(rng; center=1.0, scale=0.4)
+    hps[1] *= centered_rand(; center=0.8, scale=0.4)
+    hps[2] *= centered_rand(; center=1.2, scale=0.4)
+    hps[3] *= centered_rand(; center=1.0, scale=0.4)
     return hps
 end
 
@@ -62,9 +62,9 @@ function kernel_hyper_priors_qp(hps::Vector{<:Real}, d::Integer, μs::Vector{T},
 end
 function add_kick_qp!(hps::Vector{<:Real})
     @assert length(hps) == 3
-    hps[1] *= centered_rand(rng; center=1.0, scale=0.4)
-    hps[2] *= centered_rand(rng; center=1.2, scale=0.4)
-    hps[3] *= centered_rand(rng; center=0.8, scale=0.4)
+    hps[1] *= centered_rand(; center=1.0, scale=0.4)
+    hps[2] *= centered_rand(; center=1.2, scale=0.4)
+    hps[3] *= centered_rand(; center=0.8, scale=0.4)
     return hps
 end
 
@@ -180,7 +180,7 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
         attempts += 1
         if attempts > 1;
             println("found saddle point. starting attempt $attempts with a perturbation")
-            global current_hyper[1:end-glo.n_kern_hyper] += centered_rand(rng, length(current_hyper) - glo.n_kern_hyper)
+            global current_hyper[1:end-glo.n_kern_hyper] += centered_rand(length(current_hyper) - glo.n_kern_hyper)
             global current_hyper[end-glo.n_kern_hyper+1:end] = add_kick!(current_hyper[end-glo.n_kern_hyper+1:end])
         end
         if kernel_name == "qp_kernel"
