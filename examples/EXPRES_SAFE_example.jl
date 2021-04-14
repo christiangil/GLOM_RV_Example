@@ -37,7 +37,7 @@ length(ARGS) > 0 ? n_bs = parse(Int, ARGS[1]) : n_bs = 5
 @assert 1 < n_bs < 6
 
 # CHANGE: importing EXPRES data
-length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 2
+length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 3
 stars = ["101501", "10700", "26965", "34411"]
 star_str = stars[star_ind]
 data_dir = "examples/"
@@ -142,7 +142,7 @@ end
 # CHANGE: activity indicators and their errors go here
 # you can actually have as many as you want, but obviously it will take longer
 # to fit
-for i in 1:2
+for i in 1:size(z, 1)
     add_indicator!(rvs_and_inds_holder, rvs_and_inds_err_holder, z[i, :], σ_z[i, :])
 end
 
@@ -324,7 +324,7 @@ else
 
     println("found period:    $(ustrip(best_period)) days")
 
-    @save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period
+    @save save_dir*"period.jld2" likelihoods unnorm_posteriors period_grid best_period best_periods
 end
 
 plot(ustrip.(period_grid), likelihoods; xaxis=:log, leg=false)
@@ -333,32 +333,12 @@ plot(ustrip.(period_grid), unnorm_posteriors; xaxis=:log, leg=false)
 png(fig_dir * "period_evi")
 
 ####################################################################################################
-# Refitting GP with full planet signal at found period subtracted (K,ω,γ,M0,e-linear, P-fixed) #
+# Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
 ####################################################################################################
 remainder(vec, x) = [i > 0 ? i % x : (i % x) + x for i in vec]
 
 # Need to redefine Σ_obs for fit_kep_hold_P()
 Σ_obs = GLOM.Σ_observations(glo, fit1_total_hyperparameters)
-current_ks = fit_kep_hold_P(best_period; fast=true)
-println("before GLOM+epicyclic fit: ", GLOM_RV.kep_parms_str(current_ks))
-
-if use_saved && isfile(save_dir*"fit2.jld2")
-    @load save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
-    glo_rv = GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
-else
-    @time fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
-    fit1_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks)
-
-    @save save_dir*"fit2.jld2" glo fit2_total_hyperparameters current_ks
-end
-
-plot_helper("fit2_", current_ks, fit2_total_hyperparameters)
-####################################################################################################
-# Refitting GP with full planet signal at found period subtracted (K,ω,γ-linear, P,M0,e-nonlinear) #
-####################################################################################################
-
-# Need to redefine Σ_obs for fit_kep_hold_P()
-Σ_obs = GLOM.Σ_observations(glo, fit2_total_hyperparameters)
 current_ks = fit_kep_hold_P(best_period; print_stuff=true)
 println("before GLOM+Wright fit: ", GLOM_RV.kep_parms_str(current_ks))
 
@@ -368,7 +348,7 @@ if use_saved && isfile(save_dir*"fit3.jld2")
 else
     # 400s
     @time fit3_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
-    fit2_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
+    fit1_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks;
     avoid_saddle=false, fit_alpha=1e-3)
 
     @save save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
