@@ -219,6 +219,10 @@ end
 plot_xs = sort(append!(collect((obs_xs[1] - 10):3:(obs_xs[end] + 10)), append!([(obs_xs[i] + obs_xs[i - 1]) / 2 for i in 2:length(obs_xs)], obs_xs)))
 
 include("plot_helpers.jl")
+plot_helper(prefix::String, fit_total_hyperparameters::AbstractVector) =
+    plot_helper(glo, plot_xs, rvs_and_inds, rvs_and_inds_err, prefix, fit_total_hyperparameters)
+plot_helper(prefix::String, ks::GLOM_RV.KeplerSignal, fit_total_hyperparameters::AbstractVector) =
+    plot_helper(glo_rv, plot_xs, rvs_and_inds, rvs_and_inds_err, prefix, ks, fit_total_hyperparameters)
 
 plot_helper("fit1_", fit1_total_hyperparameters)
 

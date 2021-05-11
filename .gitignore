@@ -5,3 +5,4 @@ examples/data
 examples/figs
 *.png
 *.txt
+*_slim.jl
