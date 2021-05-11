@@ -210,8 +210,39 @@ else
     @save save_dir*"fit1.jld2" glo fit1_total_hyperparameters
 end
 
+using KernelDensity
+function pdf2cdf(pdf)
+    cdf = zeros(length(pdf))
+    cdf[1] = pdf[1]
+    for i in 2:length(cdf)
+        cdf[i] = cdf[i - 1] + pdf[i]
+    end
+    return cdf
+end
+hmm = kde(obs_xs; bandwidth=0.3)
+hmm.density ./= sum(hmm.density)
+hmmc = pdf2cdf(hmm.density)
+plot(hmm.x, hmmc)
+plot(hmm.x, hmm.density)
+thing = Int(ceil((obs_xs[end] - obs_xs[1]) / 10)) + 2
+hmm2 = hmm.density .+ (thing / (3 * length(obs_xs)) / length(hmm.x))
+hmm2 ./= sum(hmm2)
+hmmc2 = pdf2cdf(hmm2)
+plot(hmm.x, hmm2)
+plot(hmm.x, hmmc2)
+plot(hmmc2, hmm.x)
+using Interpolations
+asdf = LinearInterpolation(hmmc2, hmm.x; extrapolation_bc=Line())
+histogram(plot_xs; bins=100)
+
 ## Plotting initial results
 plot_xs = collect(LinRange(obs_xs[1]-10, obs_xs[end]+10, maximum([300, Int(round(length(obs_xs) * sqrt(2)))])))
+plot_xs = sort(append!(collect((obs_xs[1] - 10):10:(obs_xs[end] + 10)), append!([(obs_xs[i] + obs_xs[i - 1]) / 2 for i in 2:length(obs_xs)], obs_xs)))
+plot_xs = asdf.(LinRange(0, 1, thing + 3 * length(obs_xs)))
+
+GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit1_total_hyperparameters)
+plot(plot_xs, GLOM_at_plot_xs[1]; ribbons=GLOM_err_at_plot_xs)
+scatter!(obs_xs, obs_rvs)
 
 include("plot_helpers.jl")
 
