@@ -211,10 +211,12 @@ else
 end
 
 ## Plotting initial results
+# plot_xs = sort(append!(collect(LinRange(-169.73, -169.69, 300)), obs_xs))
+# GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit1_total_hyperparameters)
+# scatter(obs_xs, obs_rvs; xrange=(-169.73, -169.69))
+# plot!(plot_xs, GLOM_at_plot_xs[1]; ribbons=GLOM_err_at_plot_xs)
+
 plot_xs = sort(append!(collect((obs_xs[1] - 10):10:(obs_xs[end] + 10)), append!([(obs_xs[i] + obs_xs[i - 1]) / 2 for i in 2:length(obs_xs)], obs_xs)))
-GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit1_total_hyperparameters)
-plot(plot_xs, GLOM_at_plot_xs[1]; ribbons=GLOM_err_at_plot_xs)
-scatter!(obs_xs, obs_rvs)
 
 include("plot_helpers.jl")
 
