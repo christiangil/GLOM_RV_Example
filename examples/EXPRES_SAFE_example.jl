@@ -58,7 +58,11 @@ end
 kernel_function, num_kernel_hyperparameters = GLOM.include_kernel(kernel_name)
 
 # CHANGE: observation times go here
-obs_xs = collect(data[!, "BARYMJD"])
+if star_str == "101501"
+    obs_xs = collect(data[!, "TELMJD"])
+else
+    obs_xs = collect(data[!, "BARYMJD"])
+end
 sort_inds = sortperm(obs_xs)
 obs_xs = obs_xs[sort_inds]
 
@@ -354,7 +358,7 @@ else
     @save save_dir*"fit3.jld2" glo fit3_total_hyperparameters current_ks
 end
 
-plot_helper("fit3_", current_ks, fit3_total_hyperparameters)
+# plot_helper("fit3_", current_ks, fit3_total_hyperparameters)
 
 # # these should be near 0
 # GLOM_RV.test_∇nlogL_kep(glo_rv, workspace.Σ_obs, current_ks; include_priors=true)
