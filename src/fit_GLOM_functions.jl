@@ -244,14 +244,22 @@ function GLOM_posteriors(
     glo::GLOM.GLO,
     xs_eval::Vector{T1},
     fit_total_hyperparameters::Vector{T2};
-    y_obs::Vector{T3}=glo.y_obs
+    inflate_errors::Int=0,
+    inflation_factor::Real=100,
+    kwargs...
     ) where {T1<:Real, T2<:Real, T3<:Real}
 
     unriffle_posts(post) = [post[i:glo.n_out:end] .* glo.normals[i] for i in 1:glo.n_out]
 
-    results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, y_obs=y_obs)
-    posts = [unriffle_posts(result) for result in results]
-    return posts
+    @assert 0 <= inflate_errors <= glo.n_out
+    if inflate_errors!=0
+        glo.noise[inflate_errors:glo.n_out:end] .*= inflation_factor
+        results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, kwargs...)
+        glo.noise[inflate_errors:glo.n_out:end] ./= inflation_factor
+    else
+        results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, kwargs...)
+    end
+    return [unriffle_posts(result) for result in results]
 end
 
 
