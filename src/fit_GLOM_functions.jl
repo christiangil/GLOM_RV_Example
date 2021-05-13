@@ -240,6 +240,7 @@ fit_GLOM(glo::GLOM.GLO,
         kwargs...)
 
 
+_unriffle_posts(post::AbstractVector, glo::GLOM.GLO) = [post[i:glo.n_out:end] .* glo.normals[i] for i in 1:glo.n_out]
 function GLOM_posteriors(
     glo::GLOM.GLO,
     xs_eval::Vector{T1},
@@ -247,19 +248,35 @@ function GLOM_posteriors(
     inflate_errors::Int=0,
     inflation_factor::Real=100,
     kwargs...
-    ) where {T1<:Real, T2<:Real, T3<:Real}
-
-    unriffle_posts(post) = [post[i:glo.n_out:end] .* glo.normals[i] for i in 1:glo.n_out]
+    ) where {T1<:Real, T2<:Real}
 
     @assert 0 <= inflate_errors <= glo.n_out
     if inflate_errors!=0
         glo.noise[inflate_errors:glo.n_out:end] .*= inflation_factor
-        results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, kwargs...)
+        results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, return_Σ=false, kwargs...)
         glo.noise[inflate_errors:glo.n_out:end] ./= inflation_factor
     else
-        results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, kwargs...)
+        results = GLOM.GP_posteriors(glo, xs_eval, fit_total_hyperparameters; return_mean_obs=true, return_Σ=false, kwargs...)
     end
-    return [unriffle_posts(result) for result in results]
+    return [_unriffle_posts(result, glo) for result in results]
+end
+function GLOM_posteriors(
+    glo::GLOM.GLO,
+    fit_total_hyperparameters::Vector{T2};
+    inflate_errors::Int=0,
+    inflation_factor::Real=100,
+    kwargs...
+    ) where {T1<:Real, T2<:Real}
+
+    @assert 0 <= inflate_errors <= glo.n_out
+    if inflate_errors!=0
+        glo.noise[inflate_errors:glo.n_out:end] .*= inflation_factor
+        GLOM_at_obs_xs = GLOM.GP_posteriors(glo, fit_total_hyperparameters; kwargs...)
+        glo.noise[inflate_errors:glo.n_out:end] ./= inflation_factor
+    else
+        GLOM_at_obs_xs = GLOM.GP_posteriors(glo, fit_total_hyperparameters; kwargs...)
+    end
+    return _unriffle_posts(GLOM_at_obs_xs, glo)
 end
 
 

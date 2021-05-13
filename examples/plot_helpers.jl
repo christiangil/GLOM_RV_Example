@@ -33,7 +33,7 @@ end
 function plot_helper(glo::GLOM.GLO, plot_xs::AbstractVector, rvs_and_inds::AbstractVector{<:AbstractVector}, rvs_and_inds_err::AbstractVector{<:AbstractVector}, prefix::String, fit_total_hyperparameters::AbstractVector)
     GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo, plot_xs, fit_total_hyperparameters)
     GLOM_plots(prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
-    _, _, GLOM_at_obs_xs_inf = GLOM_RV.GLOM_posteriors(glo, [1., 2.], fit_total_hyperparameters; inflate_errors=1)
+    GLOM_at_obs_xs_inf = GLOM_RV.GLOM_posteriors(glo, fit_total_hyperparameters; inflate_errors=1)
     scatter(obs_rvs, GLOM_at_obs_xs[1];
         title = star_str * ", obs RV std: $(round(std(obs_rvs); digits=3))",
         xlabel = "Observed RVs (m/s)",
