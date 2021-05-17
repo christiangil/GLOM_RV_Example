@@ -6,3 +6,4 @@ examples/figs
 *.png
 *.txt
 *_slim.jl
+examples/EXPRES_results.jl

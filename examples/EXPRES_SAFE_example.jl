@@ -37,7 +37,7 @@ length(ARGS) > 0 ? n_bs = parse(Int, ARGS[1]) : n_bs = 5
 @assert 1 < n_bs < 6
 
 # CHANGE: importing EXPRES data
-length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 3
+length(ARGS) > 1 ? star_ind = parse(Int, ARGS[2]) : star_ind = 4
 stars = ["101501", "10700", "26965", "34411"]
 star_str = stars[star_ind]
 data_dir = "examples/"
@@ -45,7 +45,7 @@ data = CSV.read(data_dir * star_str * "_Yale_Wisconsin_hgrvsafe_results.csv", Da
 
 # CHANGE: the stars rotation rate which is used as the first guess for some GLOM
 # hyperparameters and starting point for priors
-initial_hypers = [17.1, [0.0069, 34, 1], 37, 22][star_ind]  # days
+initial_hypers = [17.1, [0.0069, 34, 1], 37., [0.0069, 22, 1]][star_ind]  # days
 
 # CHANGE: choose a kernel, I suggest 3 for Matern 5/2 or 4 for Quasi-periodic
 # kernel
