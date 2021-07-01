@@ -7,7 +7,7 @@ est_d(f::Function, input; dif::Real=1e-7) = (f(input + dif) - f(input)) ./ dif
 function est_∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     data_unit::Unitful.Velocity=1u"m/s",
     include_priors::Bool=true,
@@ -28,7 +28,7 @@ end
 function est_∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal_wright;
     data_unit::Unitful.Velocity=1u"m/s",
     include_priors::Bool=true,
@@ -46,7 +46,7 @@ function est_∇nlogL_kep(
 end
 est_∇nlogL_kep(
     glo_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::Union{kep_signal, kep_signal_wright};
     include_priors::Bool=true,
     use_hk::Bool=false,
@@ -57,7 +57,7 @@ est_∇nlogL_kep(
 function test_∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::Union{kep_signal, kep_signal_wright};
     data_unit::Unitful.Velocity=1u"m/s",
     include_priors::Bool=true
@@ -69,7 +69,7 @@ function test_∇nlogL_kep(
 end
 test_∇nlogL_kep(
     glo_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::Union{kep_signal, kep_signal_wright};
     include_priors::Bool=true
     ) where T<:Real = test_∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, include_priors=include_priors)
@@ -79,7 +79,7 @@ test_∇nlogL_kep(
 function est_∇∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     kwargs...
     ) where T<:Real
@@ -93,7 +93,7 @@ function est_∇∇nlogL_kep(
 end
 est_∇∇nlogL_kep(
     glo_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     kwargs...
     ) where T<:Real = est_∇∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)
@@ -102,7 +102,7 @@ est_∇∇nlogL_kep(
 function test_∇∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     kwargs...
     ) where T<:Real
@@ -113,7 +113,7 @@ function test_∇∇nlogL_kep(
 end
 test_∇∇nlogL_kep(
     glo_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     kwargs...
     ) where T<:Real = test_∇∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)

@@ -262,7 +262,7 @@ function ∇nlogL_kep!(
     d::Vector{<:Integer},
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal,
     y::Vector{T};
     data_unit::Unitful.Velocity=1u"m/s",
@@ -287,7 +287,7 @@ end
 function fit_kepler(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     init_ks::kep_signal;
     data_unit::Unitful.Velocity=1u"m/s",
     print_stuff::Bool=true,
@@ -549,7 +549,7 @@ kepler_rv(t::Unitful.Time, ks::kep_signal_epicyclic) = kepler_rv_epicyclic(t, ks
 function fit_kepler_epicyclic(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     P::Unitful.Time;
     data_unit::Unitful.Velocity=1u"m/s",
     print_stuff::Bool=true,
@@ -645,7 +645,7 @@ kepler_rv(t::Unitful.Time, ks::kep_signal_wright) = kepler_rv_wright(t, ks)
 function fit_kepler_wright_linear_step(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     P::Unitful.Time,
     M0::Real,
     e::Real;
@@ -682,7 +682,7 @@ function fit_kepler_wright_linear_step(
 end
 fit_kepler_wright_linear_step(
     glo_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}} where T<:Real,
+    covariance::Union{Cholesky,Diagonal} where T<:Real,
     P::Unitful.Time,
     M0::Real,
     e::Real;
@@ -704,7 +704,7 @@ function ∇nlogL_kep!(
     G::Vector{T},
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     buffer::kep_buffer_wright;
     data_unit::Unitful.Velocity=1u"m/s",
     hold_P::Bool=false,
@@ -787,7 +787,7 @@ end
 function fit_kepler_wright(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     init_ks::kep_signal_wright;
     data_unit::Unitful.Velocity=1u"m/s",
     print_stuff::Bool=true,
@@ -941,7 +941,7 @@ remove_kepler(
 
 fit_kepler(
     glo_rv::GLO_RV,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::KeplerSignal;
     kwargs...) where T<:Real =
     fit_kepler(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)
@@ -957,7 +957,7 @@ kep_parms_str_short(ks::KeplerSignal) =
 function ∇∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
-    covariance::Union{Cholesky{T,Matrix{T}},Symmetric{T,Matrix{T}},Matrix{T},Vector{T}},
+    covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     data_unit::Unitful.Velocity=1u"m/s",
     include_priors::Bool=false) where T<:Real
