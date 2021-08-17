@@ -887,7 +887,7 @@ function fit_kepler_wright(
             result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha)), Optim.Options(;callback=optim_cb_local)) # 27s
             return fit_kepler_wright_linear_step(data, times, covariance, buffer.ks.P, buffer.ks.M0, buffer.ks.e; data_unit=data_unit)
         catch
-            print("Kepler fit failed")
+            # print("Kepler fit failed")
             return nothing
         end
     end
