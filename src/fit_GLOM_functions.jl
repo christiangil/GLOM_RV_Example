@@ -192,7 +192,7 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
             global current_hyper = do_gp_fit_gridsearch!(f_no_print, current_hyper, length(current_hyper) - 2)
             try
                 while i < Int(ceil(iterations / gridsearch_every)) && !converged
-                    global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=gridsearch_every)) # 27s
+                    global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(;callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=gridsearch_every)) # 27s
                     before_grid[:] = current_hyper
                     global current_hyper = do_gp_fit_gridsearch!(f_no_print, current_hyper, length(current_hyper) - 2)
                     converged = result.g_converged && isapprox(before_grid, current_hyper)
@@ -202,7 +202,7 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
                 println("retrying fit")
                 i = 0
                 while i < Int(ceil(iterations / gridsearch_every)) && !converged
-                    global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=gridsearch_every)) # 27s
+                    global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(;callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=gridsearch_every)) # 27s
                     before_grid[:] = current_hyper
                     global current_hyper = do_gp_fit_gridsearch!(f_no_print, current_hyper, length(current_hyper) - 2)
                     converged = result.g_converged && isapprox(before_grid, current_hyper)
@@ -211,10 +211,10 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
             end
         else
             try
-                global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=iterations)) # 27s
+                global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(;callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=iterations)) # 27s
             catch
                 println("retrying fit")
-                global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=iterations))
+                global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(;callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=iterations))
             end
         end
         current_det = det(h!(zeros(length(initial_x), length(initial_x)), current_hyper))

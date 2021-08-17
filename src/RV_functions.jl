@@ -871,7 +871,7 @@ function fit_kepler_wright(
                 current_x[end] = 0.05 * rand()
             end
             # println(current_x)
-            result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha)), Optim.Options(callback=optim_cb_local)) # 27s
+            result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha)), Optim.Options(;callback=optim_cb_local)) # 27s
             current_x = copy(result.minimizer)
             ks = fit_kepler_wright_linear_step(data, times, covariance, buffer.ks.P, buffer.ks.M0, buffer.ks.e; data_unit=data_unit)
             if print_stuff; println("fit attempt $attempts: "kep_parms_str(ks)) end
@@ -884,10 +884,10 @@ function fit_kepler_wright(
         @error "no non-saddle point soln found"
     else
         try
-            result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha)), Optim.Options(callback=optim_cb_local)) # 27s
+            result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha)), Optim.Options(;callback=optim_cb_local)) # 27s
             return fit_kepler_wright_linear_step(data, times, covariance, buffer.ks.P, buffer.ks.M0, buffer.ks.e; data_unit=data_unit)
         catch
-            # print("Kepler fit failed")
+            print("Kepler fit failed")
             return nothing
         end
     end
