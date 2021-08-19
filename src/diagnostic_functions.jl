@@ -2,8 +2,29 @@
 using Statistics
 using LinearAlgebra
 
+"""
+	est_d(f, input; dif=1e-7)
+
+
+Estimate the derivative/gradient of `f` at `inputs` with forward differences
+
+# Keyword Arguments
+- `dif::Real=1e-7`: The forward differencing step size
+"""
 est_d(f::Function, input; dif::Real=1e-7) = (f(input + dif) - f(input)) ./ dif
 
+"""
+	est_∇nlogL_kep
+
+Estimate the gradient of `nlogL_kep(data, times, covariance, ks)` with forward
+differences
+
+# Keyword Arguments
+- `data_unit::Unitful.Velocity=1u"m/s"`: The units of the input data vector
+- `include_priors::Bool=true`: Whether to add a prior evaluation to the output
+- `use_hk::Bool=true`: Whether to use h and k or e and ω parameterization
+- `kwargs...`: keyword arguments that are passed to GLOM.est_∇()
+"""
 function est_∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,

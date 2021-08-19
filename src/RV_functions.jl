@@ -257,6 +257,17 @@ mutable struct kep_buffer{T1<:Real}
     nprior::T1
 end
 
+
+# function nlogL_kep(
+#     data::Vector{T},
+#     times::Vector{T2} where T2<:Unitful.Time,
+#     covariance::Union{Cholesky,Diagonal},
+#     ks::kep_signal;
+#     data_unit::Unitful.Velocity=1u"m/s")
+#     return GLOM.nlogL(covariance, remove_kepler(data, times, ks_internal; data_unit=data_unit))
+# end
+
+
 function ∇nlogL_kep!(
     G::Vector{T},
     d::Vector{<:Integer},
