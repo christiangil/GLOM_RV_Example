@@ -7,7 +7,7 @@ import GPLinearODEMaker; GLOM = GPLinearODEMaker
 
 # hyperparameter priors for kernels with one lenghtscale i.e. pp, se, m52
 function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Real, σ::Real)
-    @assert 1 == length(hps)
+    @assert length(hps) == 1 "There should be 1 hyperparameter and 1 prior distribution μ and σ in calls to kernel_hyper_priors_1λ(). In code: @assert length(hps) == 1"
     priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μ, σ); d=d)]
     if d==0; return sum(priors) end
     if d==1; return priors end
@@ -22,7 +22,7 @@ end
 
 # hyperparameter priors for kernels with two lengthscales i.e. se_se, m52_m52
 function kernel_hyper_priors_2λ(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
-    @assert length(μs) == length(σs) == length(hps)
+    @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs in calls to kernel_hyper_priors_2λ(). In code: @assert length(μs) == length(σs) == length(hps) == 3"
     priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_gamma(hps[2], GLOM.gamma_mode_std_to_α_θ(μs[2], σs[2]); d=d), GLOM.log_gaussian(hps[3], [μs[3], σs[3]]; d=d)]
     if d==0; return sum(priors) end
     if d==1; return priors end
@@ -42,7 +42,7 @@ function add_kick_2λ!(hps::Vector{<:Real})
 end
 
 function kernel_hyper_priors_qp(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}; ρ::Real=0.9) where {T<:Real}
-    @assert length(μs) == length(σs) == length(hps)
+    @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs in calls to kernel_hyper_priors_qp(). In code: @assert length(μs) == length(σs) == length(hps) == 3"
     paramsλp = GLOM.gamma_mode_std_to_α_θ(μs[3], σs[3])
     Σ_qp_prior = GLOM.bvnormal_covariance(σs[1], σs[2], ρ)  # σP, σse, ρ
     μ_qp_prior = [μs[1], μs[2]]
