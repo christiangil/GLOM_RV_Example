@@ -214,7 +214,6 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
                 global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(;callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=iterations)) # 27s
             catch
                 println("retrying fit")
-                # println(Base.doc(Base.Docs.Binding(Base.Docs.Main,:kernel_hyper_priors)))
                 global result = optimize(f, g!, h!, current_hyper, NewtonTrustRegion(), Optim.Options(;callback=optim_cb_local, g_tol=g_tol, f_tol=f_tol, iterations=iterations))
             end
         end
