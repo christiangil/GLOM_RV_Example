@@ -17,7 +17,7 @@ UnitfulAstro = "6112ee07-acf9-5e0f-b108-d242c714bf9f"
 
 [compat]
 LineSearches = "7.1"
-Optim = "1.2"
-SpecialFunctions = "0.10, 1.0"
-Unitful = "1.5"
-UnitfulAstro = "1.0"
+Optim = "1"
+SpecialFunctions = "0.10, 1, 2"
+Unitful = "1"
+UnitfulAstro = "1"
