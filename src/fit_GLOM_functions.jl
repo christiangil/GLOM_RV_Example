@@ -6,9 +6,9 @@ using Optim
 import GPLinearODEMaker; GLOM = GPLinearODEMaker
 
 # hyperparameter priors for kernels with one lenghtscale i.e. pp, se, m52
-function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Real, σ::Real)
+function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Vector{T}, σ::Vector{T}) where T<:Real
     @assert length(hps) == 1 "There should be 1 hyperparameter and 1 prior distribution μ and σ in calls to kernel_hyper_priors_1λ(). In code: @assert length(hps) == 1"
-    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μ, σ); d=d)]
+    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μ[1], σ[1]); d=d)]
     if d==0; return sum(priors) end
     if d==1; return priors end
     if d==2; return Diagonal(priors) end

@@ -45,9 +45,6 @@ function assert_positive(vars...)
     end
 end
 
-import Base.ndims
-ndims(x::Cholesky) = 2
-
 """
 Solve a linear system of equations (optionally with variance values at each point or covariance array)
 see (https://en.wikipedia.org/wiki/Generalized_least_squares#Method_outline)

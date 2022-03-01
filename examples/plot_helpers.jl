@@ -22,7 +22,7 @@ function GLOM_plots(name_prefix::String, plot_xs::AbstractVector, obs_xs::Abstra
     GLOM_ind_plots(name_prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs)
 end
 function plot_helper(glo_rv::GLOM_RV.GLO_RV, plot_xs::AbstractVector, rvs_and_inds::AbstractVector{<:AbstractVector}, rvs_and_inds_err::AbstractVector{<:AbstractVector}, prefix::String, ks::GLOM_RV.KeplerSignal, fit_total_hyperparameters::AbstractVector)
-    GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo_rv.glo, plot_xs, fit_total_hyperparameters; y_obs = GLOM_RV.remove_kepler(glo_rv, ks))
+    GLOM_at_plot_xs, GLOM_err_at_plot_xs, GLOM_at_obs_xs = GLOM_RV.GLOM_posteriors(glo_rv.GLO, plot_xs, fit_total_hyperparameters; y_obs = GLOM_RV.remove_kepler(glo_rv, ks))
     GLOM_plots(prefix, plot_xs, obs_xs, rvs_and_inds, rvs_and_inds_err, GLOM_at_plot_xs, GLOM_err_at_plot_xs, ks)
 
     plot_kep_xs = collect(LinRange(0, ustrip(best_period), 1000))
