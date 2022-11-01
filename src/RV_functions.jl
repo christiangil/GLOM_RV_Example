@@ -963,6 +963,14 @@ kep_parms_str(ks::KeplerSignal) =
     "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "m/s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  M0: $(round(ks.M0,digits=2))  e: $(round(ks.e,digits=2))  ω: $(round(ks.ω,digits=2)) γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=2))" * "m/s"
 kep_parms_str_short(ks::KeplerSignal) =
     "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=2))" * "m/s" * "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=2))" * "d" * "  e: $(round(ks.e,digits=2))"
+errs_hk2eω(ks::KeplerSignal, errs_hk::Vector) = sqrt((ks.h*errs_hk[1])^2 + (ks.k*errs_hk[2])^2) / ks.e, sqrt((ks.k*errs_hk[1])^2 + (ks.h*errs_hk[2])^2) / ks.e^2
+kep_parms_str(ks::KeplerSignal, errs_hk::Vector; digits::Int=3) =
+    "K: $(round(convert_and_strip_units(u"m/s", ks.K), digits=digits))±($(round(errs_hk[1], digits=digits)))" * "m/s" *
+    "  P: $(round(convert_and_strip_units(u"d", ks.P), digits=digits))±($(round(errs_hk[2], digits=digits)))" * "d" *
+    "  M0: $(round(ks.M0,digits=digits))±($(round(errs_hk[3], digits=digits)))" *
+    "  e: $(round(ks.e,digits=digits))±($(round(sqrt((ks.h*errs_hk[4])^2 + (ks.k*errs_hk[5])^2) / ks.e, digits=digits)))" *
+    "  ω: $(round(ks.ω,digits=digits))±($(round(sqrt((ks.k*errs_hk[4])^2 + (ks.h*errs_hk[5])^2) / ks.e^2, digits=digits)))" *
+    "  γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=digits))±($(round(errs_hk[6], digits=digits)))" * "m/s"
 
 
 function ∇∇nlogL_kep(
@@ -1011,14 +1019,14 @@ function ∇∇nlogL_GLOM_and_planet!(
     non_zero_inds = copy(glo_rv.GLO.non_zero_hyper_inds)
     n_hyper = length(non_zero_inds)
     full_H = zeros(n_kep_parms + n_hyper, n_kep_parms + n_hyper)
+    y = remove_kepler(glo_rv, ks)
+    α = workspace.Σ_obs \ y
     full_H[1:n_hyper, 1:n_hyper] = GLOM.∇∇nlogL_GLOM(
-        glo_rv.GLO, total_hyperparameters; Σ_obs=workspace.Σ_obs, y_obs=remove_kepler(glo_rv, ks))
+        glo_rv.GLO, total_hyperparameters, workspace.Σ_obs, y, α, workspace.βs)
 
     full_H[n_hyper+1:end,n_hyper+1:end] = ∇∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, workspace.Σ_obs, ks; data_unit=glo_rv.rv_factor, include_priors=include_kepler_priors)
 
     # TODO allow y and α to be passed to ∇∇nlogL_kep
-    y = remove_kepler(glo_rv, ks)
-    α = workspace.Σ_obs \ y
     for (i, nzind1) in enumerate(non_zero_inds)
         for j in 1:n_kep_parms
             d = zeros(Int, n_kep_parms)
