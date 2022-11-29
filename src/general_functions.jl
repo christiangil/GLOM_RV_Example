@@ -76,7 +76,7 @@ function find_modes(data::Vector{T}; amount::Integer=3) where {T<:Real}
     if data[end] > data[end-1]; append!(mode_inds, length(data)) end
 
     # return highest mode indices
-    return mode_inds[partialsortperm(-data[mode_inds], 1:amount)]
+    return mode_inds[partialsortperm(-data[mode_inds], 1:min(amount,length(mode_inds)))]
 
 end
 

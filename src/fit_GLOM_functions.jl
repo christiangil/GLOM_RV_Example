@@ -6,7 +6,7 @@ using Optim
 import GPLinearODEMaker; GLOM = GPLinearODEMaker
 
 # hyperparameter priors for kernels with one lenghtscale i.e. pp, se, m52
-function kernel_hyper_priors_1λ(hps::Vector{<:Real}, d::Integer, μ::Vector{T}, σ::Vector{T}) where T<:Real
+function kernel_hyper_priors_1λ(hps::AbstractVector{<:Real}, d::Integer, μ::AbstractVector{T}, σ::AbstractVector{T}) where T<:Real
     @assert length(hps) == 1 "There should be 1 hyperparameter and 1 prior distribution μ and σ in calls to kernel_hyper_priors_1λ(). In code: @assert length(hps) == 1"
     priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μ[1], σ[1]); d=d)]
     if d==0; return sum(priors) end
@@ -306,6 +306,7 @@ function fit_GLOM_and_kep!(
     add_kick!::Function,
     current_ks::KeplerSignal;
     print_stuff::Bool=true,
+    ignore_increases::Bool=true,
     kwargs...)
 
     current_hyper = GLOM.remove_zeros(init_total_hyper)
@@ -326,9 +327,11 @@ function fit_GLOM_and_kep!(
             y_obs=current_y)
         current_hyper[:] = GLOM.remove_zeros(fit_total_hyperparameters)
         results[:] = [results[2], copy(result.minimum)]
-        result_dif = results[1] - results[2]
-        if result_dif < 0; @warn "result increased occured on iteration $num_iter" end
-        result_change = abs(result_dif)
+        result_change = results[1] - results[2]
+        if ignore_increases && result_change < 0
+            @warn "result increased occured on iteration $num_iter"
+            result_change = abs(result_change)
+        end
         num_iter += 1
         if print_stuff
             println("iteration:     ", num_iter)
