@@ -101,7 +101,7 @@ function est_∇∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
     covariance::Union{Cholesky,Diagonal},
-    ks::kep_signal;
+    ks::Union{kep_signal, kep_signal_wright};
     kwargs...
     ) where T<:Real
 
@@ -115,7 +115,7 @@ end
 est_∇∇nlogL_kep(
     glo_rv::GLO_RV,
     covariance::Union{Cholesky,Diagonal},
-    ks::kep_signal;
+    ks::Union{kep_signal, kep_signal_wright};
     kwargs...
     ) where T<:Real = est_∇∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)
 
@@ -124,7 +124,7 @@ function test_∇∇nlogL_kep(
     data::Vector{T},
     times::Vector{T2} where T2<:Unitful.Time,
     covariance::Union{Cholesky,Diagonal},
-    ks::kep_signal;
+    ks::Union{kep_signal, kep_signal_wright};
     kwargs...
     ) where T<:Real
 
@@ -135,6 +135,6 @@ end
 test_∇∇nlogL_kep(
     glo_rv::GLO_RV,
     covariance::Union{Cholesky,Diagonal},
-    ks::kep_signal;
+    ks::Union{kep_signal, kep_signal_wright};
     kwargs...
     ) where T<:Real = test_∇∇nlogL_kep(glo_rv.GLO.y_obs, glo_rv.time, covariance, ks; data_unit=glo_rv.rv_factor, kwargs...)

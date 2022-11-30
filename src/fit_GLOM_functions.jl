@@ -315,7 +315,6 @@ function fit_GLOM_and_kep!(
     result_change = Inf
     num_iter = 0
     while result_change > 1e-4 && num_iter < 30
-        current_ks = fit_kepler(glo_rv, workspace.Σ_obs, current_ks; print_stuff=false, kwargs...)
         current_y[:] = remove_kepler(glo_rv, current_ks)
         fit_total_hyperparameters, result = fit_GLOM!(
             workspace,
@@ -326,6 +325,7 @@ function fit_GLOM_and_kep!(
             print_stuff=false,
             y_obs=current_y)
         current_hyper[:] = GLOM.remove_zeros(fit_total_hyperparameters)
+        current_ks = fit_kepler(glo_rv, workspace.Σ_obs, current_ks; print_stuff=false, kwargs...)
         results[:] = [results[2], copy(result.minimum)]
         result_change = results[1] - results[2]
         if ignore_increases && result_change < 0

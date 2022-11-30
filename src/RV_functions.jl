@@ -303,7 +303,8 @@ function fit_kepler(
     data_unit::Unitful.Velocity=1u"m/s",
     print_stuff::Bool=true,
     include_priors::Bool=true,
-    avoid_saddle::Bool=true
+    avoid_saddle::Bool=true,
+    fit_alpha::Real=3e-3
     ) where T<:Real
 
     # if P==0; return kep_signal_epicyclic(p, P, M0, e, ω, γ, coefficients) end
@@ -371,7 +372,7 @@ function fit_kepler(
             current_x[6] += centered_rand(; scale=1e-1)
         end
         # println(current_x)
-        result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=3e-3))) # 27s
+        result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha))) # 27s
         current_x = copy(result.minimizer)
         ks = ks_from_vec(current_x, K_u, P_u, γ_u; use_hk=true)
         if print_stuff; println("fit attempt $attempts: "kep_parms_str(ks)) end
@@ -784,12 +785,15 @@ function ∇nlogL_kep!(
         G[end-1] -= dPriordx(dβdM0, kep_prior_G[3], 0)
         G[end] -= dPriordx(dβde, kep_prior_G[4], 1)
     end
+
+    # G .*= 3/8
+
 end
-function ∇nlogL_kep(data, times, covariance, init_ks::kep_signal_wright; kwargs...)
+function ∇nlogL_kep(data, times, covariance, init_ks::kep_signal_wright; data_unit::Unitful.Velocity=1u"m/s", hold_P::Bool=false, kwargs...)
     ks, ϵ_int, ϵ_inv, design_matrix, E_t = fit_kepler_wright_linear_step(data, times, covariance, init_ks.P, init_ks.M0, init_ks.e; data_unit=data_unit, return_extra=true)
     buffer = kep_buffer_wright(ks, remove_kepler(data, times, ks; data_unit=data_unit), -logprior_kepler(ks; use_hk=false), ϵ_int, ϵ_inv, design_matrix, E_t)
     G = zeros(3 - hold_P)
-    ∇nlogL_kep!(G, data, times, covariance, buffer; kwargs...)
+    ∇nlogL_kep!(G, data, times, covariance, buffer; hold_P=hold_P, kwargs...)
     return G
 end
 
@@ -887,7 +891,9 @@ function fit_kepler_wright(
             ks = fit_kepler_wright_linear_step(data, times, covariance, buffer.ks.P, buffer.ks.M0, buffer.ks.e; data_unit=data_unit)
             if print_stuff; println("fit attempt $attempts: "kep_parms_str(ks)) end
             # println(∇∇nlogL_kep(data, times, covariance, ks; data_unit=data_unit))
-            new_det = det(∇∇nlogL_kep(data, times, covariance, kep_signal(ks.K, ks.P, ks.M0, ks.e, ks.ω, ks.γ); data_unit=data_unit))
+            # println(∇nlogL_kep(data, times, covariance, kep_signal(ks); data_unit=data_unit, include_priors=include_priors))
+            # println(∇∇nlogL_kep(data, times, covariance, kep_signal(ks); data_unit=data_unit, include_priors=include_priors))
+            new_det = det(∇∇nlogL_kep(data, times, covariance, kep_signal(ks); data_unit=data_unit, include_priors=include_priors))
             if print_stuff; println("determinant: ", new_det) end
             in_saddle = new_det <= 0
             if !in_saddle; return ks end
@@ -971,7 +977,13 @@ kep_parms_str(ks::KeplerSignal, errs_hk::Vector; digits::Int=3) =
     "  e: $(round(ks.e,digits=digits))±($(round(sqrt((ks.h*errs_hk[4])^2 + (ks.k*errs_hk[5])^2) / ks.e, digits=digits)))" *
     "  ω: $(round(ks.ω,digits=digits))±($(round(sqrt((ks.k*errs_hk[4])^2 + (ks.h*errs_hk[5])^2) / ks.e^2, digits=digits)))" *
     "  γ: $(round(convert_and_strip_units(u"m/s", ks.γ), digits=digits))±($(round(errs_hk[6], digits=digits)))" * "m/s"
-
+function parms_str(parms, errs::Vector; digits::Int=3)
+    res = ""
+    for i in 1:length(parms)
+        res *= "$(round(parms[i], digits=digits))±($(round(errs[i], digits=digits))) "
+    end
+    return res[1:end-1]
+end
 
 function ∇∇nlogL_kep(
     data::Vector{T},
@@ -979,7 +991,7 @@ function ∇∇nlogL_kep(
     covariance::Union{Cholesky,Diagonal},
     ks::kep_signal;
     data_unit::Unitful.Velocity=1u"m/s",
-    include_priors::Bool=false) where T<:Real
+    include_priors::Bool=true) where T<:Real
 
     y = remove_kepler(data, times, ks; data_unit=data_unit)
     α = covariance \ y
@@ -1012,7 +1024,7 @@ function ∇∇nlogL_GLOM_and_planet!(
     glo_rv::GLO_RV,
     total_hyperparameters::Vector{<:Real},
     ks::kep_signal;
-    include_kepler_priors::Bool=false)
+    include_kepler_priors::Bool=true)
 
     GLOM.calculate_shared_∇nlogL_matrices!(workspace, glo_rv.GLO, total_hyperparameters)
 
