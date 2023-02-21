@@ -24,9 +24,9 @@ function velocity_semi_amplitude(
     e::Real=0.,
     i::Real=π/2)
 
-    # m_star = convert_and_strip_units(u"Msun", m_star)
-    # m_planet = convert_and_strip_units(u"Msun", m_planet)
-    # P = convert_and_strip_units(u"yr", P)
+    m_star = convert_and_strip_units(u"Msun", m_star)
+    m_planet = convert_and_strip_units(u"Msun", m_planet)
+    P = convert_and_strip_units(u"yr", P)
     assert_positive(P, m_star, m_planet)
     comb_mass = m_star + m_planet
     K_au_yr = (2 * π * sin(i) * m_planet / (sqrt((1-e)*(1+e)) * cbrt(comb_mass * comb_mass * P)))u"AU/yr"
@@ -375,7 +375,7 @@ function fit_kepler(
         result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha))) # 27s
         current_x = copy(result.minimizer)
         ks = ks_from_vec(current_x, K_u, P_u, γ_u; use_hk=true)
-        if print_stuff; println("fit attempt $attempts: "kep_parms_str(ks)) end
+        if print_stuff; println("fit attempt $attempts: ",kep_parms_str(ks)) end
         # println(∇∇nlogL_kep(data, times, covariance, ks; data_unit=data_unit))
         new_det = det(∇∇nlogL_kep(data, times, covariance, ks; data_unit=data_unit, include_priors=include_priors))
         if print_stuff; println("determinant: ", new_det) end
@@ -889,7 +889,7 @@ function fit_kepler_wright(
             result = optimize(f, g!, current_x, LBFGS(alphaguess=LineSearches.InitialStatic(alpha=fit_alpha)), Optim.Options(;callback=optim_cb_local)) # 27s
             current_x = copy(result.minimizer)
             ks = fit_kepler_wright_linear_step(data, times, covariance, buffer.ks.P, buffer.ks.M0, buffer.ks.e; data_unit=data_unit)
-            if print_stuff; println("fit attempt $attempts: "kep_parms_str(ks)) end
+            if print_stuff; println("fit attempt $attempts: ",kep_parms_str(ks)) end
             # println(∇∇nlogL_kep(data, times, covariance, ks; data_unit=data_unit))
             # println(∇nlogL_kep(data, times, covariance, kep_signal(ks); data_unit=data_unit, include_priors=include_priors))
             # println(∇∇nlogL_kep(data, times, covariance, kep_signal(ks); data_unit=data_unit, include_priors=include_priors))
