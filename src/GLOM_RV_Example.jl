@@ -1,6 +1,6 @@
 module GLOM_RV_Example
 
-const n_kep_parms = 6
+const n_kep_parms = 5
 include("general_functions.jl")
 include("glo_rv_functions.jl")
 export GLO_RV
@@ -9,5 +9,6 @@ include("fit_GLOM_functions.jl")
 include("keplerian_derivatives.jl")
 include("prior_functions.jl")
 include("diagnostic_functions.jl")
+include("plot_functions.jl")
 
 end # module

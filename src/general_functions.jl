@@ -68,15 +68,16 @@ end
 
 
 "Return an amount of indices of local maxima of a data array"
-function find_modes(data::Vector{T}; amount::Integer=3) where {T<:Real}
+function find_modes(data::Vector{T}) where {T<:Real}
 
     # creating index list for inds at modes
     mode_inds = [i for i in 2:(length(data)-1) if (data[i]>=data[i-1]) && (data[i]>=data[i+1])]
-    if data[1] > data[2]; prepend!(mode_inds, 1) end
-    if data[end] > data[end-1]; append!(mode_inds, length(data)) end
+    # if data[1] > data[2]; prepend!(mode_inds, 1) end
+    # if data[end] > data[end-1]; append!(mode_inds, length(data)) end
 
     # return highest mode indices
-    return mode_inds[partialsortperm(-data[mode_inds], 1:min(amount,length(mode_inds)))]
+    # return mode_inds[partialsortperm(-data[mode_inds], 1:min(amount,length(mode_inds)))]
+	return mode_inds[sortperm(-data[mode_inds])]
 
 end
 
@@ -87,4 +88,16 @@ centered_rand(rng::AbstractRNG, d; center::Real=0, scale::Real=1) = (scale .* (r
 
 function remove_mean!(vec::AbstractVector)
     vec .-= mean(vec)
+end
+
+
+function append_vec!(to_be_append_to::Vector{Vector{T}}, to_append::Vector{T}; remove_mean::Bool=true) where T
+    if remove_mean
+        GLOM_RV.remove_mean!(to_append)
+    end
+    append!(to_be_append_to, [to_append])
+end
+function add_indicator!(rvs_and_inds::Vector{Vector{T}}, rvs_and_inds_err::Vector{Vector{T}}, indicator::Vector{T}, indicator_err::Vector{T}) where T
+    append_vec!(rvs_and_inds, indicator; remove_mean=true)
+    append_vec!(rvs_and_inds_err, indicator_err; remove_mean=false)
 end

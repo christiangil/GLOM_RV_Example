@@ -8,7 +8,7 @@ using GLOM_RV_Example; GLOM_RV = GLOM_RV_Example
 using SymEngine
 using UnitfulAstro; using Unitful
 
-@vars K, P, M0, h, k, γ, π_sym, t, cosEA, sinEA
+@vars K, P, M0, h, k, π_sym, t, cosEA, sinEA
 @funs EA
 e = sqrt(h^2+k^2)
 EAf = EA(P, M0, h, k, t)
@@ -26,10 +26,10 @@ function kep_EA_simplify(kep_sym::Basic)
     kep_sym = kep_sym(diff(EAf, k) => cosω * sinE / factor)
     return kep_sym
 end
-syms = [K, P, M0, h, k, γ]
+syms = [K, P, M0, h, k]
 n_kep = length(syms)
 
-kep = K / factor * (e_mod * cosE * cosω - sqrt(e_mod) * sinE * sinω) + γ
+kep = K / factor * (e_mod * cosE * cosω - sqrt(e_mod) * sinE * sinω) 
 dkeps = [kep_EA_simplify(diff(kep, sym)) for sym in syms]
 ddkeps = [[kep_EA_simplify(diff(dkep, sym)) for dkep in dkeps] for sym in syms]
 
@@ -62,7 +62,7 @@ begin
 	write(io, """using UnitfulAstro; using Unitful
 
 	\"\"\"
-	kep_deriv() function created by examples/create_keplerian_derivatives.jl.
+		kep_deriv() function created by examples/create_keplerian_derivatives.jl.
 	Derivative of a Keplerian radial velocity signal using h and k instead of
 	e and ω
 
@@ -72,7 +72,6 @@ begin
 	M0 (real): initial mean anomaly
 	h (real): eccentricity * sin(argument of periastron)
 	k (real): eccentricity * cos(argument of periastron)
-	γ (Unitful.Velocity): velocity offset
 	t (Unitful.Time): time
 	dorder (vector of integers): A vector of how many partial derivatives you want
 		to take with respect to each variable in the input order
@@ -86,9 +85,8 @@ begin
 		M0::Real,
 		h::Real,
 		k::Real,
-		γ::Unitful.Velocity,
 		t::Unitful.Time,
-		dorder::Vector{<:Integer})
+		dorder::AbstractVector{<:Integer})
 
 		validate_kepler_dorder(dorder)
 
@@ -128,7 +126,7 @@ begin
 
 	write(io, "    return float(func)\n\nend\n")
 
-	write(io, """kep_deriv(ks::kep_signal, t::Unitful.Time, dorder::Vector{<:Integer}) =\n    kep_deriv(ks.K, ks.P, ks.M0, ks.h, ks.k, ks.γ, t, dorder)""")
+	write(io, """kep_deriv(ks::kep_signal, t::Unitful.Time, dorder::AbstractVector{<:Integer}) =\n    kep_deriv(ks.K, ks.P, ks.M0, ks.h, ks.k, t, dorder)""")
 
 	close(io)
 end
