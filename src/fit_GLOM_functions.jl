@@ -304,7 +304,8 @@ function fit_GLOM_and_kep!(
     init_total_hyper::Vector{<:Real},
     kernel_hyper_priors::Function,
     add_kick!::Function,
-    current_ks::KeplerSignal;
+    current_ks::KeplerSignal,
+    offset::Offset;
     print_stuff::Bool=true,
     ignore_increases::Bool=true,
     kwargs...)
@@ -315,7 +316,7 @@ function fit_GLOM_and_kep!(
     result_change = Inf
     num_iter = 0
     while result_change > 1e-4 && num_iter < 30
-        current_y[:] = remove_kepler(glo_rv, current_ks)
+        current_y[:] = remove_kepler(glo_rv, current_ks, offset)
         fit_total_hyperparameters, result = fit_GLOM!(
             workspace,
             glo_rv.GLO,
@@ -325,7 +326,7 @@ function fit_GLOM_and_kep!(
             print_stuff=false,
             y_obs=current_y)
         current_hyper[:] = GLOM.remove_zeros(fit_total_hyperparameters)
-        current_ks = fit_kepler(glo_rv, workspace.Σ_obs, current_ks; print_stuff=false, kwargs...)
+        current_ks = fit_kepler(glo_rv, workspace.Σ_obs, current_ks, offset; print_stuff=false, kwargs...)
         results[:] = [results[2], copy(result.minimum)]
         result_change = results[1] - results[2]
         if ignore_increases && result_change < 0
@@ -348,7 +349,8 @@ fit_GLOM_and_kep(glo_rv::GLO_RV,
     init_total_hyper::Vector{<:Real},
     kernel_hyper_priors::Function,
     add_kick!::Function,
-    current_ks::KeplerSignal;
+    current_ks::KeplerSignal,
+    offset::Offset;
     kwargs...) = fit_GLOM_and_kep!(
         GLOM.nlogL_matrix_workspace(glo_rv.GLO, init_total_hyper), glo_rv,
-        init_total_hyper, kernel_hyper_priors, add_kick!, current_ks; kwargs...)
+        init_total_hyper, kernel_hyper_priors, add_kick!, current_ks, offset; kwargs...)
