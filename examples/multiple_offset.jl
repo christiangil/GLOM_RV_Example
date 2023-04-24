@@ -221,3 +221,6 @@ errs_glom, errs_kep, errs_off = GLOM_RV.GLOM_and_kep_and_offset_errs_from_hessia
 println("Found planet vs injected one")
 println(GLOM_RV.kep_and_offset_parms_str(full_ks, errs_kep, current_offset, errs_off))
 println(GLOM_RV.kep_and_offset_parms_str(inject_ks, offset))
+
+## Convert M0 to a T0 with GLOM_RV.M0_to_T0()
+# GLOM_RV.M0_to_T0(full_ks.M0, errs_kep[3], u"d", full_ks.P; shift=0, ref_t = ref_t*u"d")

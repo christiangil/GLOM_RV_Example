@@ -1227,3 +1227,16 @@ end
 
 kep_and_offset_parms_str(ks, offset; kwargs...) = kep_parms_str(ks; kwargs...) * " " * offset_parms_str(offset; kwargs...)
 kep_and_offset_parms_str(ks, ks_errs, offset, offset_errs; kwargs...) = kep_parms_str(ks, ks_errs; kwargs...) * " " * offset_parms_str(offset, ks_errs; kwargs...)
+
+
+M0_to_T0(M0::Real, P::Real; shift::Int=0, ref_t::Real=0) = (M0 / (2 * π) + shift) * P + ref_t
+M0_to_T0(M0::Real, M0_σ::Real, P::Real; kwargs...) = M0_to_T0(M0, P; kwargs...), M0_to_T0(M0_σ, P; shift=0, ref_t=0)
+
+function M0_to_T0(M0::Real, time_u::Unitful.FreeUnits, P::Unitful.Time; shift::Int=0, ref_t::Unitful.Time=0.0*time_u)
+    uP = convert_and_strip_units(time_u, P)
+    uref_t = convert_and_strip_units(time_u, ref_t)
+    return M0_to_T0(M0, uP; shift=shift, ref_t=uref_t)
+end
+M0_to_T0(M0::Real, M0_σ::Real, time_u::Unitful.FreeUnits, P::Unitful.Time; kwargs...) = 
+    M0_to_T0(M0, time_u, P; kwargs...), M0_to_T0(M0_σ, time_u, P; shift=0, ref_t=0.0*time_u)
+
