@@ -19,8 +19,8 @@ plot_dir = "examples/figs/lag_and_jitter/"
 ####################
 
 # what GLOM coefficients are being used (for the lag version of GLOM, don't suggest using derivatives)
-# a0 = reshape([1., 1], (2,1))
-a0 = reshape([0., 1, 1, 0], (2,2))
+a0 = reshape([1., 1], (2,1))
+# a0 = reshape([0., 1, 1, 0], (2,2))
 # Observation times
 obs_xs = sort!(append!(LinRange(1,30., 30) .+ 0.1.*rand(30), LinRange(1,30., 30) .+ 0.1.*rand(30)))  # twice nightly observations for a 30 days
 # Lengthscale of the input GLOM model
@@ -89,7 +89,7 @@ num_kernel_hyperparameters = n_kern_hyper_mat + n_jitter
 tighten_lengthscale_priors = 1
 function kernel_hyper_priors_base(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
     @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs. In code: @assert length(μs) == length(σs) == length(hps) == 3"
-    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_gamma(hps[2], GLOM.gamma_mode_std_to_α_θ(μs[2], σs[2]); d=d), GLOM.log_loguniform(hps[3], [1e-3,10]; d=d)]
+    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_uniform(hps[2]; min_max=[-1000,1000]; d=d), GLOM.log_loguniform(hps[3], [1e-3,10]; d=d)]
     if d==0; return sum(priors) end
     if d==1; return priors end
     if d==2; return Diagonal(priors) end
