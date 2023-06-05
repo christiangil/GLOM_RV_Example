@@ -160,7 +160,7 @@ png(plot_dir * "lag_search")
 potential_lags_post = potential_lags[GLOM_RV.find_modes(-potential_lags_ℓ)]
 initial_hypers[2] = potential_lags_post[findfirst(potential_lags_post .> 0.5)]
 
-total_hyperparameters = append!(collect(Iterators.flatten(glo.a)), initial_hypers)GLOM.GLOM.rounded
+total_hyperparameters = append!(collect(Iterators.flatten(glo.a)), initial_hypers)
 
 ##################
 # Fit GLOM model #
