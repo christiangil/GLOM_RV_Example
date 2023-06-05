@@ -14,6 +14,33 @@ using LaTeXStrings
 
 plot_dir = "examples/figs/lag_and_jitter/"
 
+####################
+# Simulation setup #
+####################
+
+# what GLOM coefficients are being used (for the lag version of GLOM, don't suggest using derivatives)
+# a0 = reshape([1., 1], (2,1))
+a0 = reshape([0., 1, 1, 0], (2,2))
+# Observation times
+obs_xs = sort!(append!(LinRange(1,30., 30) .+ 0.1.*rand(30), LinRange(1,30., 30) .+ 0.1.*rand(30)))  # twice nightly observations for a 30 days
+# Lengthscale of the input GLOM model
+λ = 10.  # days
+δ = 3.  # days
+jitter = 1.  # m/s
+truth_hypers = [λ, δ, jitter]
+initial_hypers = copy(truth_hypers)
+# Input RV noise
+rv_noise = 0.1 .* ones(length(obs_xs))  # 10 cm/s RV noise
+# Input indicator noise
+indicator_noise = 0.3 .* ones(length(obs_xs))
+# Input planet
+inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
+
+# the observations have no offset
+n_obs = length(obs_xs)
+offset = GLOM_RV.basic_Offset(n_obs)
+current_offset = copy(offset)
+
 #################
 # Custom kernel #
 #################
@@ -22,20 +49,40 @@ plot_dir = "examples/figs/lag_and_jitter/"
 kernel_name = "m52"
 kernel_mat, n_kern_hyper_mat = GLOM.include_lag_kernel(kernel_name)
 kernel_scale, n_kern_hyper_scale = GLOM.include_kernel("scale")
-k_inds = [1,2,5]  # indices for the coefficient and the jitter hyperparameters
+
+add_rv_jitter = true
+add_activity_jitter = false && add_rv_jitter  # currently built assuming that if you are using activity jitter, you are also using RV jitter, activity jitter not used in this example
+n_non_jitter = 2 + n_kern_hyper_mat  # the 2 is related to whether you are taking a derivative w.r.t. t or t', not the number of coefficients
+n_jitter = add_rv_jitter + add_activity_jitter
+n_hyper_and_time = n_non_jitter + n_jitter
+rv_jitter_d_ind = n_non_jitter + add_rv_jitter
+act_jitter_d_ind = rv_jitter_d_ind + add_activity_jitter
+rv_jitter_ind = rv_jitter_d_ind - 2
+act_jitter_ind = act_jitter_d_ind - 2
+jitter_d_inds = rv_jitter_d_ind:act_jitter_d_ind
+
+time_and_jitter_d_inds_rv = append!(collect(1:2), [rv_jitter_d_ind])  # indices for the coefficient and the jitter hyperparameters
+other_d_inds_rv = [i for i in 1:n_hyper_and_time if !(i in time_and_jitter_d_inds_rv)]
+# time_and_jitter_d_inds_act = append!(collect(1:2), [act_jitter_d_ind])  # indices for the coefficient and the jitter hyperparameters
+# other_d_inds_act = [i for i in 1:n_hyper_and_time if !(i in time_and_jitter_d_inds_act)]
+
 function kernel_function(hyperparameters, δ, dorder; outputs::AbstractVector{<:Integer}=[1,1], kwargs...)
     res = 0
     # if there are no jitter term derivatives being taken
-    if dorder[5] < 1
-        res += kernel_mat(view(hyperparameters, 1:2), δ, view(dorder, 1:4); outputs=outputs, kwargs...)
+    if all(view(dorder, jitter_d_inds) .< 1)
+        res += kernel_mat(view(hyperparameters, 1:n_kern_hyper_mat), δ, view(dorder, 1:(2+n_kern_hyper_mat)); outputs=outputs, kwargs...)
     end
-    # if you are on the output with jitter and no non-jitter derivatives are being taken
-    if all(outputs.==1) && dorder[3] < 1 && dorder[4] < 1
-        res += Int(δ == 0)*kernel_scale(view(hyperparameters, 3:3), δ, view(dorder, k_inds))
+    # if you are on the output with RV jitter and no non-jitter derivatives are being taken
+    if all(outputs.==1) && all(view(dorder, other_d_inds_rv) .< 1)
+        res += Int(δ == 0)*kernel_scale(view(hyperparameters, rv_jitter_ind:rv_jitter_ind), δ, view(dorder, time_and_jitter_d_inds_rv))
     end
+    # # if you are on the output with activity jitter and no non-jitter derivatives are being taken
+    # if all(outputs.==2) && all(view(dorder, other_d_inds_act) .< 1)
+    #     res += Int(δ == 0)*kernel_scale(view(hyperparameters, act_jitter_ind:act_jitter_ind), δ, view(dorder, time_and_jitter_d_inds_act))
+    # end
     return res
 end
-num_kernel_hyperparameters = 3
+num_kernel_hyperparameters = n_kern_hyper_mat + n_jitter
 
 
 # defining functions for GP hyperparameter priors and how to kick the fitting out of saddle points (see other kernel_hyper_priors and add_kick functions in fit_GLOM_functions.jl)
@@ -57,32 +104,6 @@ function add_kick!(hps::Vector{<:Real})
     hps[3] *= GLOM_RV.centered_rand(; center=1, scale=0.5)
     return hps
 end
-
-####################
-# Simulation setup #
-####################
-
-# what GLOM coefficients are being used (for the lag version of GLOM, don't suggest using derivatives)
-a0 = reshape([1., 1], (2,1))
-# Observation times
-obs_xs = sort!(append!(LinRange(1,30., 30) .+ 0.1.*rand(30), LinRange(1,30., 30) .+ 0.1.*rand(30)))  # twice nightly observations for a 30 days
-# Lengthscale of the input GLOM model
-λ = 10.  # days
-δ = 3.  # days
-jitter = 1.  # m/s
-truth_hypers = [λ, δ, jitter]
-initial_hypers = copy(truth_hypers)
-# Input RV noise
-rv_noise = 0.1 .* ones(length(obs_xs))  # 10 cm/s RV noise
-# Input indicator noise
-indicator_noise = 0.3 .* ones(length(obs_xs))
-# Input planet
-inject_ks = GLOM_RV.kep_signal(; K=1.0u"m/s", P=sqrt(2)*5u"d", M0=3.2992691080593275, ω_or_k=4.110936513051912, e_or_h=0.1)
-
-# the observations have no offset
-n_obs = length(obs_xs)
-offset = GLOM_RV.basic_Offset(n_obs)
-current_offset = copy(offset)
 
 ###################
 # Data simulation #
