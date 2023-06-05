@@ -89,7 +89,7 @@ num_kernel_hyperparameters = n_kern_hyper_mat + n_jitter
 tighten_lengthscale_priors = 1
 function kernel_hyper_priors_base(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
     @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs. In code: @assert length(μs) == length(σs) == length(hps) == 3"
-    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_uniform(hps[2]; min_max=[-1000,1000]; d=d), GLOM.log_loguniform(hps[3], [1e-3,10]; d=d)]
+    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_uniform(hps[2]; min_max=[-1000,1000], d=d), GLOM.log_loguniform(hps[3], [1e-3,10]; d=d)]
     if d==0; return sum(priors) end
     if d==1; return priors end
     if d==2; return Diagonal(priors) end
@@ -140,6 +140,9 @@ obs_noise = GLOM.riffle([rv_noise, indicator_noise])
 
 glo = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a=copy(a0), kernel_changes_with_output=true)
 GLOM.normalize_GLO!(glo)
+
+glo.coeff_orders
+glo.coeff_coeffs
 
 ##################################
 # Searching for a good lag guess #
