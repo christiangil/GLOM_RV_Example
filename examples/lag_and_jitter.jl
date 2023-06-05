@@ -61,7 +61,7 @@ rv_jitter_ind = rv_jitter_d_ind - 2
 act_jitter_ind = act_jitter_d_ind - 2
 jitter_d_inds = rv_jitter_d_ind:act_jitter_d_ind
 
-time_and_jitter_d_inds_rv = append!(collect(1:2), [rv_jitter_d_ind])  # indices for the coefficient and the jitter hyperparameters
+time_and_jitter_d_inds_rv = append!(collect(1:2), [rv_jitter_d_ind])  # indices for the t, t' and jitter hyperparameters derivatives
 other_d_inds_rv = [i for i in 1:n_hyper_and_time if !(i in time_and_jitter_d_inds_rv)]
 # time_and_jitter_d_inds_act = append!(collect(1:2), [act_jitter_d_ind])  # indices for the coefficient and the jitter hyperparameters
 # other_d_inds_act = [i for i in 1:n_hyper_and_time if !(i in time_and_jitter_d_inds_act)]
