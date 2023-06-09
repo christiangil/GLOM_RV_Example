@@ -14,14 +14,14 @@ function kernel_hyper_priors_1λ(hps::AbstractVector{<:Real}, d::Integer, μ::Ab
     if d==2; return Diagonal(priors) end
     @error d_err_msg
 end
-function add_kick_1λ!(hps::Vector{<:Real})
+function add_kick_1λ!(hps::AbstractVector{<:Real})
     @assert length(hps) == 1
     hps .*= centered_rand(length(hps); center=1, scale=0.5)
     return hps
 end
 
 # hyperparameter priors for kernels with two lengthscales i.e. se_se, m52_m52
-function kernel_hyper_priors_2λ(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
+function kernel_hyper_priors_2λ(hps::AbstractVector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
     @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs in calls to kernel_hyper_priors_2λ(). In code: @assert length(μs) == length(σs) == length(hps) == 3"
     priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_gamma(hps[2], GLOM.gamma_mode_std_to_α_θ(μs[2], σs[2]); d=d), GLOM.log_gaussian(hps[3], [μs[3], σs[3]]; d=d)]
     if d==0; return sum(priors) end
@@ -29,7 +29,7 @@ function kernel_hyper_priors_2λ(hps::Vector{<:Real}, d::Integer, μs::Vector{T}
     if d==2; return Diagonal(priors) end
     @error d_err_msg
 end
-function add_kick_2λ!(hps::Vector{<:Real})
+function add_kick_2λ!(hps::AbstractVector{<:Real})
     @assert length(hps) == 3
     if hps[1] > hps[2]
         hps[3] = 1 / hps[3]
@@ -41,7 +41,7 @@ function add_kick_2λ!(hps::Vector{<:Real})
     return hps
 end
 
-function kernel_hyper_priors_qp(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}; ρ::Real=0.9) where {T<:Real}
+function kernel_hyper_priors_qp(hps::AbstractVector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}; ρ::Real=0.9) where {T<:Real}
     @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs in calls to kernel_hyper_priors_qp(). In code: @assert length(μs) == length(σs) == length(hps) == 3"
     paramsλp = GLOM.gamma_mode_std_to_α_θ(μs[3], σs[3])
     Σ_qp_prior = GLOM.bvnormal_covariance(σs[1], σs[2], ρ)  # σP, σse, ρ
@@ -60,7 +60,7 @@ function kernel_hyper_priors_qp(hps::Vector{<:Real}, d::Integer, μs::Vector{T},
     end
     @error d_err_msg
 end
-function add_kick_qp!(hps::Vector{<:Real})
+function add_kick_qp!(hps::AbstractVector{<:Real})
     @assert length(hps) == 3
     hps[1] *= centered_rand(; center=1.0, scale=0.4)
     hps[2] *= centered_rand(; center=1.2, scale=0.4)
@@ -126,7 +126,7 @@ end
 function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
     glo::GLOM.GLO,
     initial_total_hyperparameters::Vector{<:Real},
-    kernel_hyper_priors::Function,
+    nprior_f::Function,
     add_kick!::Function;
     g_tol=1e-6,
     f_tol=1e-10,
@@ -144,7 +144,7 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
     h!_helper(non_zero_hyper::Vector{T} where T<:Real) = GLOM.∇∇nlogL_GLOM!(workspace, glo, non_zero_hyper; y_obs=y_obs)
 
     function f_no_print(non_zero_hyper::Vector{T}) where {T<:Real}
-        nprior = nlogprior_hyperparameters(kernel_hyper_priors, glo.n_kern_hyper, non_zero_hyper, 0)
+        nprior = nprior_f(non_zero_hyper, 0)
         if nprior == Inf
             return nprior
         else
@@ -159,16 +159,16 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
     end
 
     function g!(G::Vector{T}, non_zero_hyper::Vector{T}) where {T<:Real}
-        if nlogprior_hyperparameters(kernel_hyper_priors, glo.n_kern_hyper, non_zero_hyper, 0) == Inf
+        if nprior_f(non_zero_hyper, 0) == Inf
             G[:] .= 0
         else
             global current_hyper[:] = non_zero_hyper
-            G[:] = g!_helper(non_zero_hyper) + nlogprior_hyperparameters(kernel_hyper_priors, glo.n_kern_hyper, non_zero_hyper, 1)
+            G[:] = g!_helper(non_zero_hyper) + nprior_f(non_zero_hyper, 1)
         end
     end
 
     function h!(H::Matrix{T}, non_zero_hyper::Vector{T}) where {T<:Real}
-        H[:, :] = h!_helper(non_zero_hyper) + nlogprior_hyperparameters(kernel_hyper_priors, glo.n_kern_hyper, non_zero_hyper, 2)
+        H[:, :] = h!_helper(non_zero_hyper) + nprior_f(non_zero_hyper, 2)
     end
 
     # time0 = Libc.time()
@@ -181,7 +181,7 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
         if attempts > 1;
             println("found saddle point. starting attempt $attempts with a perturbation")
             global current_hyper[1:end-glo.n_kern_hyper] += centered_rand(length(current_hyper) - glo.n_kern_hyper)
-            global current_hyper[end-glo.n_kern_hyper+1:end] = add_kick!(current_hyper[end-glo.n_kern_hyper+1:end])
+            global current_hyper[end-glo.n_kern_hyper+1:end] = add_kick!(view(current_hyper, (length(current_hyper)-glo.n_kern_hyper+1):length(current_hyper)))
         end
         if kernel_name == "qp_kernel"
             gridsearch_every = 100
@@ -229,13 +229,13 @@ function fit_GLOM!(workspace::GLOM.nlogL_matrix_workspace,
 end
 fit_GLOM(glo::GLOM.GLO,
     initial_total_hyperparameters::Vector{<:Real},
-    kernel_hyper_priors::Function,
+    nprior_f::Function,
     add_kick!::Function;
     kwargs...) = fit_GLOM!(
         GLOM.nlogL_matrix_workspace(glo, initial_total_hyperparameters),
         glo,
         initial_total_hyperparameters,
-        kernel_hyper_priors,
+        nprior_f,
         add_kick!;
         kwargs...)
 
@@ -302,7 +302,7 @@ function fit_GLOM_and_kep!(
     workspace::GLOM.nlogL_matrix_workspace,
     glo_rv::GLO_RV,
     init_total_hyper::Vector{<:Real},
-    kernel_hyper_priors::Function,
+    nprior_f::Function,
     add_kick!::Function,
     current_ks::KeplerSignal,
     offset::Offset;
@@ -321,7 +321,7 @@ function fit_GLOM_and_kep!(
             workspace,
             glo_rv.GLO,
             current_hyper,
-            kernel_hyper_priors,
+            nprior_f,
             add_kick!;
             print_stuff=false,
             y_obs=current_y)
@@ -347,10 +347,10 @@ function fit_GLOM_and_kep!(
 end
 fit_GLOM_and_kep(glo_rv::GLO_RV,
     init_total_hyper::Vector{<:Real},
-    kernel_hyper_priors::Function,
+    nprior_f::Function,
     add_kick!::Function,
     current_ks::KeplerSignal,
     offset::Offset;
     kwargs...) = fit_GLOM_and_kep!(
         GLOM.nlogL_matrix_workspace(glo_rv.GLO, init_total_hyper), glo_rv,
-        init_total_hyper, kernel_hyper_priors, add_kick!, current_ks, offset; kwargs...)
+        init_total_hyper, nprior_f, add_kick!, current_ks, offset; kwargs...)

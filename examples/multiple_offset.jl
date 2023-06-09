@@ -83,9 +83,9 @@ GLOM.normalize_GLO!(glo)
 
 # defining functions for GP hyperparameter priors and how to kick the fitting out of saddle points (see other kernel_hyper_priors and add_kick functions in fit_GLOM_functions.jl)
 tighten_lengthscale_priors = 1
-kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
+kernel_hyper_priors(hps::AbstractVector{<:Real}, d::Integer) =
     GLOM_RV.kernel_hyper_priors_1λ(hps, d, initial_hypers, initial_hypers ./ tighten_lengthscale_priors)
-add_kick!(hps::Vector{<:Real}) = GLOM_RV.add_kick_1λ!(hps)
+add_kick!(hps::AbstractVector{<:Real}) = GLOM_RV.add_kick_1λ!(hps)
 
 ##################
 # Fit GLOM model #

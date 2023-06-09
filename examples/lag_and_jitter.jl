@@ -21,11 +21,12 @@ plot_dir = "examples/figs/lag_and_jitter/"
 # what GLOM coefficients are being used (for the lag version of GLOM, don't suggest using derivatives)
 a0 = reshape([1., 1], (2,1))
 # a0 = reshape([0., 1, 1, 0], (2,2))
+n_coeff = length(GLOM.remove_zeros(collect(Iterators.flatten(a0))))
 # Observation times
 obs_xs = sort!(append!(LinRange(1,30., 30) .+ 0.1.*rand(30), LinRange(1,30., 30) .+ 0.1.*rand(30)))  # twice nightly observations for a 30 days
 # Lengthscale of the input GLOM model
 λ = 10.  # days
-δ = 3.  # days
+δ = -3.  # days
 jitter = 1.  # m/s
 truth_hypers = [λ, δ, jitter]
 initial_hypers = copy(truth_hypers)
@@ -84,25 +85,22 @@ function kernel_function(hyperparameters, δ, dorder; outputs::AbstractVector{<:
 end
 num_kernel_hyperparameters = n_kern_hyper_mat + n_jitter
 
-
-# defining functions for GP hyperparameter priors and how to kick the fitting out of saddle points (see other kernel_hyper_priors and add_kick functions in fit_GLOM_functions.jl)
+# defining functions for GP coefficient and hyperparameter priors and how to kick the fitting out of saddle points (see other kernel_hyper_priors and add_kick functions in fit_GLOM_functions.jl)
 tighten_lengthscale_priors = 1
-function kernel_hyper_priors_base(hps::Vector{<:Real}, d::Integer, μs::Vector{T}, σs::Vector{T}) where T<:Real
-    @assert length(μs) == length(σs) == length(hps) == 3 "There should be 3 hyperparameters and 3 prior distribution μs and σs. In code: @assert length(μs) == length(σs) == length(hps) == 3"
-    priors = [GLOM.log_gamma(hps[1], GLOM.gamma_mode_std_to_α_θ(μs[1], σs[1]); d=d), GLOM.log_uniform(hps[2]; min_max=[-1000,1000], d=d), GLOM.log_loguniform(hps[3], [1e-3,10]; d=d)]
-    if d==0; return sum(priors) end
-    if d==1; return priors end
-    if d==2; return Diagonal(priors) end
-    @error GLOM_RV.d_err_msg
+function hyper_npriors(total_hyper::Vector, d::Integer)
+    npriors = append!(zeros(n_coeff), -[GLOM.log_gamma(total_hyper[n_coeff+1], GLOM.gamma_mode_std_to_α_θ(initial_hypers[1], initial_hypers[1]/tighten_lengthscale_priors); d=d), GLOM.log_uniform(total_hyper[n_coeff+2]; min_max=[-1000,1000], d=d), GLOM.log_loguniform(total_hyper[n_coeff+3], [1e-3,10]; d=d)])
+    @assert length(npriors) == length(total_hyper)
+    if d==0; return sum(npriors) end
+    if d==1; return npriors end
+    if d==2; return Diagonal(npriors) end
+    @error d_err_msg
 end
-kernel_hyper_priors(hps::Vector{<:Real}, d::Integer) =
-    kernel_hyper_priors_base(hps, d, initial_hypers, initial_hypers ./ tighten_lengthscale_priors)
-function add_kick!(hps::Vector{<:Real})
-    @assert length(hps) == 3
-    hps[1] *= GLOM_RV.centered_rand(; center=1, scale=0.4)
-    hps[2] *= GLOM_RV.centered_rand(; center=1, scale=0.2)
-    hps[3] *= GLOM_RV.centered_rand(; center=1, scale=0.5)
-    return hps
+function add_kick!(kernel_hyper::AbstractVector{<:Real})
+    @assert length(kernel_hyper) == length(truth_hypers)
+    kernel_hyper[1] *= GLOM_RV.centered_rand(; center=1, scale=0.4)
+    kernel_hyper[2] *= GLOM_RV.centered_rand(; center=1, scale=0.2)
+    kernel_hyper[3] *= GLOM_RV.centered_rand(; center=1, scale=0.5)
+    return kernel_hyper
 end
 
 ###################
@@ -141,9 +139,6 @@ obs_noise = GLOM.riffle([rv_noise, indicator_noise])
 glo = GLOM.GLO(kernel_function, num_kernel_hyperparameters, n_dif, n_out, obs_xs, copy(obs_ys); noise=copy(obs_noise), a=copy(a0), kernel_changes_with_output=true)
 GLOM.normalize_GLO!(glo)
 
-glo.coeff_orders
-glo.coeff_coeffs
-
 ##################################
 # Searching for a good lag guess #
 ##################################
@@ -158,7 +153,8 @@ plt = GLOM_RV.periodogram_plot(collect(potential_lags), potential_lags_ℓ; font
 png(plot_dir * "lag_search")
 
 potential_lags_post = potential_lags[GLOM_RV.find_modes(-potential_lags_ℓ)]
-initial_hypers[2] = potential_lags_post[findfirst(potential_lags_post .> 0.5)]
+# initial_hypers[2] = potential_lags_post[findfirst(potential_lags_post .> 0.5)]
+initial_hypers[2] = potential_lags_post[1]
 
 total_hyperparameters = append!(collect(Iterators.flatten(glo.a)), initial_hypers)
 
@@ -167,15 +163,13 @@ total_hyperparameters = append!(collect(Iterators.flatten(glo.a)), initial_hyper
 ##################
 
 # fitting the GLOM model to the simulated data
-fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM!(workspace, glo, initial_total_hyperparameters, kernel_hyper_priors, add_kick!)
+fit1_total_hyperparameters, result = GLOM_RV.fit_GLOM!(workspace, glo, initial_total_hyperparameters, hyper_npriors, add_kick!)
 
 # just a helper function to make it easier to evaluate the priors on the hyperparameters
-nlogprior_hyperparameters(total_hyper::Vector, d::Int) = GLOM_RV.nlogprior_hyperparameters(kernel_hyper_priors, glo.n_kern_hyper, total_hyper, d)
 fit_nlogL1 = GLOM.nlogL_GLOM(glo, fit1_total_hyperparameters)
 H1 = (GLOM.∇∇nlogL_GLOM(glo, fit1_total_hyperparameters)
-    + nlogprior_hyperparameters(GLOM.remove_zeros(fit1_total_hyperparameters), 2))
+    + hyper_npriors(GLOM.remove_zeros(fit1_total_hyperparameters), 2))
 fit1_total_hyperparameters_σ = GLOM_RV.errs_from_hessian(H1)
-lengthscale_ind = length(fit1_total_hyperparameters_σ)
 
 title_helper(nzhypers, hypers_σ, ℓ) = L" \lambda_{M^5/_2}=%$(GLOM.rounded(nzhypers[3])) \pm %$(GLOM.rounded(hypers_σ[3])) \ \textrm{days}, \ \delta=%$(GLOM.rounded(nzhypers[4])) \pm %$(GLOM.rounded(hypers_σ[4])) \ \textrm{days}, \ \sigma_\star=%$(GLOM.rounded(nzhypers[5] * glo.normals[1] * nzhypers[1])) \pm %$(GLOM.rounded(hypers_σ[5] * glo.normals[1] * nzhypers[1])) \ \textrm{m/s}, \ \ell=%$(GLOM.rounded(ℓ))"
 x_samp = GLOM_RV.plot_points(glo; max_extra=100, ignore_obs=true)
@@ -192,12 +186,12 @@ glo_rv = GLOM_RV.GLO_RV(glo, 1u"d", glo.normals[1]u"m/s")
 println("starting hyperparameters")
 println(initial_total_hyperparameters)
 initial_nlogL = GLOM.nlogL_GLOM(glo, initial_total_hyperparameters)
-initial_uE = -initial_nlogL - nlogprior_hyperparameters(initial_total_hyperparameters, 0)
+initial_uE = -initial_nlogL - hyper_npriors(initial_total_hyperparameters, 0)
 println(initial_uE, "\n")
 
 println("ending hyperparameters")
 println(fit1_total_hyperparameters)
-uE1 = -fit_nlogL1 - nlogprior_hyperparameters(fit1_total_hyperparameters, 0)
+uE1 = -fit_nlogL1 - hyper_npriors(fit1_total_hyperparameters, 0)
 println(uE1, "\n")
 
 Σ_obs = GLOM.Σ_observations(glo, fit1_total_hyperparameters)
@@ -207,7 +201,7 @@ println(uE1, "\n")
 #######################################
 
 # search for planet period with a keplerian peridogram
-period_grid, likelihoods, unnorm_posteriors, kss, offsets = GLOM_RV.keplerian_periodogram(glo_rv, current_offset, fit1_total_hyperparameters; Σ_obs=Σ_obs, nlogprior_kernel=nlogprior_hyperparameters(GLOM.remove_zeros(fit1_total_hyperparameters), 0))
+period_grid, likelihoods, unnorm_posteriors, kss, offsets = GLOM_RV.keplerian_periodogram(glo_rv, current_offset, fit1_total_hyperparameters; Σ_obs=Σ_obs, nlogprior_kernel=hyper_npriors(GLOM.remove_zeros(fit1_total_hyperparameters), 0))
 best_periods = period_grid[GLOM_RV.find_modes(likelihoods)]
 best_period = best_periods[1]
 # best_period = inject_ks.P
@@ -226,18 +220,18 @@ png(plot_dir * "periodogram")
 ###############################
 
 fit2_total_hyperparameters, current_ks = GLOM_RV.fit_GLOM_and_kep(glo_rv,
-    fit1_total_hyperparameters, kernel_hyper_priors, add_kick!, current_ks, current_offset;
+    fit1_total_hyperparameters, hyper_npriors, add_kick!, current_ks, current_offset;
     avoid_saddle=false, fit_alpha=1e-3)
 
 # convert the semi-linear keplerian model to a fully non-linear one
 full_ks = GLOM_RV.kep_signal(current_ks)
 
 fit_nlogL2 = GLOM.nlogL_GLOM(glo, fit2_total_hyperparameters; y_obs=GLOM_RV.remove_kepler(glo_rv, full_ks, current_offset))
-uE2 = -fit_nlogL2 - nlogprior_hyperparameters(fit2_total_hyperparameters, 0) + GLOM_RV.logprior_kepler(full_ks; use_hk=true)
+uE2 = -fit_nlogL2 - hyper_npriors(fit2_total_hyperparameters, 0) + GLOM_RV.logprior_kepler(full_ks; use_hk=true)
 
 H2 = Matrix(GLOM_RV.∇∇nlogL_GLOM_and_kep(glo_rv, fit2_total_hyperparameters, full_ks, current_offset; include_kepler_priors=true))
 n_hyper = length(GLOM.remove_zeros(fit2_total_hyperparameters))
-H2[1:n_hyper, 1:n_hyper] += nlogprior_hyperparameters(GLOM.remove_zeros(fit2_total_hyperparameters), 2)
+H2[1:n_hyper, 1:n_hyper] += hyper_npriors(GLOM.remove_zeros(fit2_total_hyperparameters), 2)
 fit2_total_hyperparameters_σ = GLOM_RV.errs_from_hessian(H2)
 
 plt = GLOM_RV.make_plot(glo_rv, full_ks, current_offset, fit2_total_hyperparameters, 
